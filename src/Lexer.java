@@ -94,13 +94,109 @@ public class Lexer {
         String[] parseLines = parseText.split("\n");
 
         for (String line: parseLines) {
-            if (parseLine(line, makeRegexTokenPattern())){
+            if (parseLine(line)){
                 tokens.add(new Token("\n", whitespace.get("\n")));
             }
         }
     }
 
-    private boolean parseLine(String line, String pattern){
+    private boolean parseLine(String line){
+        // remove comment part
+        String noCommentLine = line.split("\\#")[0];
+        if (noCommentLine.matches("^\\s*$")){
+            return false;
+        }
+
+        String[] symbLine = noCommentLine.split("");
+        for (int i=0; i < symbLine.length; i++) {
+            if (i+1 != symbLine.length && symbols.containsKey(symbLine[i] + symbLine[i+1])){
+                tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                i++;
+            }
+            else {
+                if (symbols.containsKey(symbLine[i])){
+                    tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                }
+                else {
+                    if (whitespace.containsKey(symbLine[i])){
+                        tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i])));
+                    }
+                    else {
+                        if (i+1 != symbLine.length && symbLine[i].equals("0") &&
+                                symbLine[i+1].matches("[xob]")){
+                            String num = "0"+symbLine[i+1];
+                            short j = 2;
+                            while ((i+j < symbLine.length) &&
+                                    isOthNum(symbLine[i+j], symbLine[i+1]) && j < 8){
+                                num += symbLine[i+j];
+                                j++;
+                            }
+
+                            switch (symbLine[i+1]){
+                                case "x": tokens.add(new Token(num, "HEXNUM")); break;
+                                case "o": tokens.add(new Token(num, "OCTNUM")); break;
+                                case "b": tokens.add(new Token(num, "BINNUM")); break;
+                            }
+
+                            i += num.length()-1;
+                        }
+                        else {
+                            if (symbLine[i].matches("\\d")){
+                                String num = "";
+                                boolean isFloat = false;
+                                short j = 0;
+                                while (i+j < symbLine.length &&
+                                        symbLine[i+j].matches("[\\d\\.]")){
+                                    if (symbLine[i+j].equals(".")){
+                                        isFloat = true;
+                                    }
+                                    num += symbLine[i+j];
+                                    j++;
+                                }
+
+                                if (isFloat){
+                                    tokens.add(new Token(num, "FLOAT"));
+                                }
+                                else {
+                                    tokens.add(new Token(num, "INT"));
+                                }
+                                i += num.length()-1;
+                            }
+                            else {
+                                if (symbLine[i].matches("[a-zA-Z]")){
+                                    String num = "";
+                                    short j = 0;
+                                    while (i+j < symbLine.length &&
+                                            symbLine[i+j].matches("\\w")){
+                                        num += symbLine[i+j];
+                                        j++;
+                                    }
+
+                                    tokens.add(new Token(num, "WORD"));
+                                    i += num.length()-1;
+                                }
+                                else {
+                                    tokens.add(new Token(symbLine[i], "UNDEF"));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isOthNum(String s, String system){
+        switch (system){
+            case "x": return s.matches("[\\da-fA-F]");
+            case "o": return s.matches("[0-7]");
+            case "b": return s.equals("1") || s.equals("0");
+        }
+        return false;
+    }
+
+    private boolean parseLineRegex(String line, String pattern){
         // remove comment part
         String noCommentLine = line.split("\\#")[0];
 

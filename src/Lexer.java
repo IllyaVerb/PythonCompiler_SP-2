@@ -102,7 +102,7 @@ public class Lexer {
 
     private boolean parseLine(String line){
         // remove comment part
-        String noCommentLine = line.split("\\#")[0];
+        String noCommentLine = line.split("#")[0];
         if (noCommentLine.matches("^\\s*$")){
             return false;
         }
@@ -124,55 +124,55 @@ public class Lexer {
                     else {
                         if (i+1 != symbLine.length && symbLine[i].equals("0") &&
                                 symbLine[i+1].matches("[xob]")){
-                            String num = "0"+symbLine[i+1];
+                            StringBuilder num = new StringBuilder("0" + symbLine[i + 1]);
                             short j = 2;
                             while ((i+j < symbLine.length) &&
                                     isOthNum(symbLine[i+j], symbLine[i+1]) && j < 8){
-                                num += symbLine[i+j];
+                                num.append(symbLine[i + j]);
                                 j++;
                             }
 
                             switch (symbLine[i+1]){
-                                case "x": tokens.add(new Token(num, "HEXNUM")); break;
-                                case "o": tokens.add(new Token(num, "OCTNUM")); break;
-                                case "b": tokens.add(new Token(num, "BINNUM")); break;
+                                case "x": tokens.add(new Token(num.toString(), "HEXNUM")); break;
+                                case "o": tokens.add(new Token(num.toString(), "OCTNUM")); break;
+                                case "b": tokens.add(new Token(num.toString(), "BINNUM")); break;
                             }
 
                             i += num.length()-1;
                         }
                         else {
                             if (symbLine[i].matches("\\d")){
-                                String num = "";
+                                StringBuilder num = new StringBuilder();
                                 boolean isFloat = false;
                                 short j = 0;
                                 while (i+j < symbLine.length &&
-                                        symbLine[i+j].matches("[\\d\\.]")){
+                                        symbLine[i+j].matches("[\\d.]")){
                                     if (symbLine[i+j].equals(".")){
                                         isFloat = true;
                                     }
-                                    num += symbLine[i+j];
+                                    num.append(symbLine[i + j]);
                                     j++;
                                 }
 
                                 if (isFloat){
-                                    tokens.add(new Token(num, "FLOAT"));
+                                    tokens.add(new Token(num.toString(), "FLOAT"));
                                 }
                                 else {
-                                    tokens.add(new Token(num, "INT"));
+                                    tokens.add(new Token(num.toString(), "INT"));
                                 }
                                 i += num.length()-1;
                             }
                             else {
                                 if (symbLine[i].matches("[a-zA-Z]")){
-                                    String num = "";
+                                    StringBuilder num = new StringBuilder();
                                     short j = 0;
                                     while (i+j < symbLine.length &&
                                             symbLine[i+j].matches("\\w")){
-                                        num += symbLine[i+j];
+                                        num.append(symbLine[i + j]);
                                         j++;
                                     }
 
-                                    tokens.add(new Token(num, "WORD"));
+                                    tokens.add(new Token(num.toString(), "WORD"));
                                     i += num.length()-1;
                                 }
                                 else {
@@ -198,7 +198,7 @@ public class Lexer {
 
     private boolean parseLineRegex(String line, String pattern){
         // remove comment part
-        String noCommentLine = line.split("\\#")[0];
+        String noCommentLine = line.split("#")[0];
 
         // check if it is clear line
         Pattern p = Pattern.compile("^\\s*$");

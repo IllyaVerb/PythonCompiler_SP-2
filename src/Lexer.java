@@ -16,9 +16,22 @@ public class Lexer {
 
     private ArrayList<Token> tokens = new ArrayList<>();
 
-    public Lexer(){
-        parseText = "";
+    public Lexer(String nameFile, boolean isFile){
         fillMaps();
+
+        if(isFile) {
+            try (FileReader reader = new FileReader(nameFile)) {
+                int symb;
+                while ((symb = reader.read()) != -1) {
+                    parseText += (char) symb;
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+        else{
+            parseText = nameFile;
+        }
     }
 
     private void fillMaps(){
@@ -108,18 +121,39 @@ public class Lexer {
         }
 
         String[] symbLine = noCommentLine.split("");
+        boolean spaceTabPart = true;
+
         for (int i=0; i < symbLine.length; i++) {
             if (i+1 != symbLine.length && symbols.containsKey(symbLine[i] + symbLine[i+1])){
-                tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                tokens.add(new Token(symbLine[i] + symbLine[i+1],
+                        symbols.get(symbLine[i] + symbLine[i+1])));
                 i++;
             }
             else {
                 if (symbols.containsKey(symbLine[i])){
-                    tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                    if (i+1 != symbLine.length && (symbLine[i].matches("[\"']"))){
+                        StringBuilder num = new StringBuilder(symbLine[i]);
+                        short j = 1;
+                        while (i+j < symbLine.length){
+                            num.append(symbLine[i + j]);
+                            j++;
+                            if (symbLine[i+j-1].equals(symbLine[i])){
+                                break;
+                            }
+                        }
+
+                        tokens.add(new Token(num.toString(), "STRING"));
+                        i += num.length()-1;
+                    }
+                    else {
+                        tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                    }
                 }
                 else {
                     if (whitespace.containsKey(symbLine[i])){
-                        tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i])));
+                        if (spaceTabPart) {
+                            tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i])));
+                        }
                     }
                     else {
                         if (i+1 != symbLine.length && symbLine[i].equals("0") &&
@@ -172,7 +206,13 @@ public class Lexer {
                                         j++;
                                     }
 
-                                    tokens.add(new Token(num.toString(), "WORD"));
+                                    if (keywords.containsKey(num.toString())){
+                                        tokens.add(new Token(num.toString(), keywords.get(num.toString())));
+                                    }
+                                    else {
+                                        tokens.add(new Token(num.toString(), "WORD"));
+                                    }
+                                    spaceTabPart = false;
                                     i += num.length()-1;
                                 }
                                 else {
@@ -291,22 +331,6 @@ public class Lexer {
         }
 
         return res;
-    }
-
-    public void parseFile(String nameFile, boolean isFile){
-        if(isFile) {
-            try (FileReader reader = new FileReader(nameFile)) {
-                int symb;
-                while ((symb = reader.read()) != -1) {
-                    parseText += (char) symb;
-                }
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
-            }
-        }
-        else{
-            parseText = nameFile;
-        }
     }
 
     public String getParseText() {

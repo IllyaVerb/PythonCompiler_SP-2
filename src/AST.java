@@ -10,13 +10,26 @@ public class AST {
     }
 
     public void printAST(){
-        recursivePrintChildren(root);
+        recursivePrintChildren(root, 0);
     }
 
-    private void recursivePrintChildren(Node_AST child){
-        System.out.println("\n" + child.getCurrent().getValue() + " - " + child.getCurrent().getType());
+    private void recursivePrintChildren(Node_AST child, int depth){
+        String prev = "";
+        if (depth > 1){
+            prev = "|";
+            for (int i = 0; i < depth-1; i++) {
+                prev += "\t\t";
+            }
+            prev += "+---";
+        }
+        else {
+            if (depth > 0){
+                prev = "+---";
+            }
+        }
+        System.out.println(String.format("%s{%1s - %-1s}", prev, child.getCurrent().getValue(), child.getCurrent().getType()));
         for (Node_AST node: child.getChildren()) {
-            recursivePrintChildren(node);
+            recursivePrintChildren(node, depth+1);
         }
     }
 

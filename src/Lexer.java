@@ -3,20 +3,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Lexer {
     private String parseText;
 
-    private Map<String, String> keywords = new HashMap<>();
-    private Map<String, String> symbols = new HashMap<>();
-    private Map<String, String> whitespace = new HashMap<>();
+    private Map<String, String> keywords;
+    private Map<String, String> symbols;
+    private Map<String, String> whitespace;
 
     private ArrayList<Token> tokens = new ArrayList<>();
 
     public Lexer(String nameFile, boolean isFile){
+        keywords = new HashMap<>();
+        symbols = new HashMap<>();
+        whitespace = new HashMap<>();
         fillMaps();
 
         if(isFile) {
@@ -32,6 +32,8 @@ public class Lexer {
         else{
             parseText = nameFile;
         }
+
+        makeTokens();
     }
 
     private void fillMaps(){
@@ -81,7 +83,8 @@ public class Lexer {
         symbols.put("*", "MUL");
         symbols.put("**", "POW");
         symbols.put("/", "DIV");
-        symbols.put("?", "QUESTION_MARK");
+        symbols.put("//", "INT_DIV");
+        symbols.put("?", "QUESTION");
         symbols.put(":", "COLON");
         symbols.put("<", "LT");
         symbols.put(">", "GT");
@@ -103,17 +106,17 @@ public class Lexer {
         whitespace.put("\n", "NEW_LINE");
     }
 
-    public void makeTokens(){
+    private void makeTokens(){
         String[] parseLines = parseText.split("\n");
 
-        for (String line: parseLines) {
-            if (parseLine(line)){
-                tokens.add(new Token("\n", whitespace.get("\n")));
+        for (int i=0; i < parseLines.length; i++) {
+            if (parseLine(parseLines[i], i)){
+                tokens.add(new Token("\n", whitespace.get("\n"), i, parseLines.length));
             }
         }
     }
 
-    private boolean parseLine(String line){
+    private boolean parseLine(String line, int row){
         // remove comment part
         String noCommentLine = line.split("#")[0];
         if (noCommentLine.matches("^\\s*$")){
@@ -126,7 +129,7 @@ public class Lexer {
         for (int i=0; i < symbLine.length; i++) {
             if (i+1 != symbLine.length && symbols.containsKey(symbLine[i] + symbLine[i+1])){
                 tokens.add(new Token(symbLine[i] + symbLine[i+1],
-                        symbols.get(symbLine[i] + symbLine[i+1])));
+                        symbols.get(symbLine[i] + symbLine[i+1]), row, i));
                 i++;
             }
             else {
@@ -142,17 +145,17 @@ public class Lexer {
                             }
                         }
 
-                        tokens.add(new Token(num.toString(), "STRING"));
+                        tokens.add(new Token(num.toString(), "STRING", row, i));
                         i += num.length()-1;
                     }
                     else {
-                        tokens.add(new Token(symbLine[i], symbols.get(symbLine[i])));
+                        tokens.add(new Token(symbLine[i], symbols.get(symbLine[i]), row, i));
                     }
                 }
                 else {
                     if (whitespace.containsKey(symbLine[i])){
                         if (spaceTabPart) {
-                            tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i])));
+                            tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i]), row, i));
                         }
                     }
                     else {
@@ -167,9 +170,9 @@ public class Lexer {
                             }
 
                             switch (symbLine[i+1]){
-                                case "x": tokens.add(new Token(num.toString(), "HEXNUM")); break;
-                                case "o": tokens.add(new Token(num.toString(), "OCTNUM")); break;
-                                case "b": tokens.add(new Token(num.toString(), "BINNUM")); break;
+                                case "x": tokens.add(new Token(num.toString(), "HEXNUM", row, i)); break;
+                                case "o": tokens.add(new Token(num.toString(), "OCTNUM", row, i)); break;
+                                case "b": tokens.add(new Token(num.toString(), "BINNUM", row, i)); break;
                             }
 
                             i += num.length()-1;
@@ -189,10 +192,10 @@ public class Lexer {
                                 }
 
                                 if (isFloat){
-                                    tokens.add(new Token(num.toString(), "FLOAT"));
+                                    tokens.add(new Token(num.toString(), "FLOAT", row, i));
                                 }
                                 else {
-                                    tokens.add(new Token(num.toString(), "INT"));
+                                    tokens.add(new Token(num.toString(), "INT", row, i));
                                 }
                                 i += num.length()-1;
                             }
@@ -206,17 +209,18 @@ public class Lexer {
                                         j++;
                                     }
 
-                                    if (keywords.containsKey(num.toString())){
-                                        tokens.add(new Token(num.toString(), keywords.get(num.toString())));
-                                    }
-                                    else {
-                                        tokens.add(new Token(num.toString(), "WORD"));
-                                    }
+                                    tokens.add(new Token(num.toString(),
+                                            keywords.getOrDefault(num.toString(), "WORD"), row, i));
                                     spaceTabPart = false;
                                     i += num.length()-1;
                                 }
                                 else {
-                                    tokens.add(new Token(symbLine[i], "UNDEF"));
+                                    tokens.add(new Token(symbLine[i], "UNDEF", row, i));
+                                    try {
+                                        throw new CompilerException("Undefined symbol", row, i);
+                                    } catch (CompilerException e) {
+                                        System.err.println(e.getMessage());
+                                    }
                                 }
                             }
                         }
@@ -236,7 +240,7 @@ public class Lexer {
         return false;
     }
 
-    private boolean parseLineRegex(String line, String pattern){
+    /*private boolean parseLineRegex(String line, String pattern){
         // remove comment part
         String noCommentLine = line.split("#")[0];
 
@@ -331,7 +335,7 @@ public class Lexer {
         }
 
         return res;
-    }
+    }*/
 
     public String getParseText() {
         return parseText;
@@ -350,7 +354,7 @@ public class Lexer {
                 case " ": val = "\\s"; break;
                 default: val = token.getValue();
             }
-            System.out.println("[\t"+val+"\t\t\t\t"+token.getType()+"\t]");
+            System.out.println(String.format("[ %10s <==> %-10s ]", val, token.getType()));
         }
     }
 }

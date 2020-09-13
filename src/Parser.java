@@ -7,21 +7,21 @@ public class Parser {
     private HashMap<String, AST> defAST;
     private AST mainAST;
 
-    public Parser(ArrayList<Token> tokens){
+    public Parser(ArrayList<Token> tokens) throws CompilerException {
         this.tokens = tokens;
         this.defAST = new HashMap<>();
-        this.mainAST = new AST(new Token(null, "START"));
+        this.mainAST = new AST(new Token(null, "START", 0, 0));
 
         for (Iterator<Token> tokenIterator = tokens.iterator(); tokenIterator.hasNext();) {
             Token token = tokenIterator.next();
             switch (token.getType()){
                 case "DEF": {
-                    AST tmp = new AST(parseDef(tokenIterator));
+                    AST tmp = new AST(parseDef(token, tokenIterator));
                     defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
                     break;
                 }
                 case "WORD": {
-
+                    mainAST.getRoot().appendChild(parseWord(token, tokenIterator));
                     break;
                 }
                 default:
@@ -30,7 +30,7 @@ public class Parser {
         }
     }
 
-    private Node_AST parseDef(Iterator<Token> tokenIterator){
+    private Node_AST parseDef(Token prev, Iterator<Token> tokenIterator) throws CompilerException {
         int[] currentSpaceTabCount = {0, 0};
         String defName;
 
@@ -65,17 +65,19 @@ public class Parser {
             fail(1, token);
         }
 
-        Node_AST statement = parseStatement(tokenIterator, currentSpaceTabCount);
-        Node_AST def = new Node_AST(new Token(defName, "DEF_WORD"));
+        Node_AST statement = parseStatement(token, tokenIterator, currentSpaceTabCount);
+        Node_AST def = new Node_AST(new Token(defName, "DEF_WORD", prev.getRow(), prev.getColumn()));
         def.appendChild(statement);
         statement.setParent(def);
 
         return def;
     }
 
-    private Node_AST parseStatement(Iterator<Token> tokenIterator, int[] spaceTabCount){
+    private Node_AST parseStatement(Token prev, Iterator<Token> tokenIterator, int[] spaceTabCount)
+            throws CompilerException {
         int[] currentSpaceTabCount = {0, 0};
         Token token = tokenIterator.next();
+
         while (token.getType().matches("(TAB)|(SPACE)")) {
             if (token.getType().equals("TAB")){
                 currentSpaceTabCount[1]++;
@@ -98,7 +100,8 @@ public class Parser {
             fail(2, token);
         }
         Node_AST exp = parseExpression(token);
-        Node_AST statement = new Node_AST(new Token("return", "RETURN"));
+        Node_AST statement = new Node_AST(new Token("return", "RETURN",
+                                                        prev.getRow(), prev.getColumn()));
         statement.appendChild(exp);
         exp.setParent(statement);
 
@@ -110,7 +113,7 @@ public class Parser {
         return statement;
     }
 
-    private Node_AST parseExpression(Token token){
+    private Node_AST parseExpression(Token token) throws CompilerException {
         Node_AST intVar = new Node_AST(null, null);
         String value = token.getValue();
 
@@ -127,27 +130,29 @@ public class Parser {
                     }
                     casted.append(ch);
                 }
-                intVar = new Node_AST(new Token(casted.toString(), "INT(FLOAT)"));
+                intVar = new Node_AST(new Token(casted.toString(),
+                        "INT(FLOAT)", token.getRow(), token.getColumn()));
                 break;
             }
             case "HEXNUM": {
-                intVar = new Node_AST(new Token(Long.decode(value).toString(), "INT(HEXNUM)"));
+                intVar = new Node_AST(new Token(Long.decode(value).toString(),
+                        "INT(HEXNUM)", token.getRow(), token.getColumn()));
                 break;
             }
             case "OCTNUM": {
                 intVar = new Node_AST(new Token(Integer.parseInt(value.substring(2), 8)+"",
-                        "INT(OCTNUM)"));
+                        "INT(OCTNUM)", token.getRow(), token.getColumn()));
                 break;
             }
             case "BINNUM": {
                 intVar = new Node_AST(new Token(Integer.parseInt(value.substring(2), 2)+"",
-                        "INT(BINNUM)"));
+                        "INT(BINNUM)", token.getRow(), token.getColumn()));
                 break;
             }
             case "STRING": {
                 if (value.length() == 1){
                     intVar = new Node_AST(new Token(Character.getNumericValue(value.toCharArray()[0])+"",
-                            "INT(CHAR)"));
+                            "INT(CHAR)", token.getRow(), token.getColumn()));
                 }
                 else {
                     fail(2, token);
@@ -158,29 +163,78 @@ public class Parser {
         return intVar;
     }
 
+    private Node_AST parseWord(Token prev, Iterator<Token> tokenIterator) throws CompilerException {
+        Token token = tokenIterator.next();
+        Node_AST word = new Node_AST(null, null);
 
+        switch (token.getType()){
+            case "LBR" : {
+                word = parseDefCall(prev, tokenIterator);
+                break;
+            }
+            default: {
+                fail(3, token);
+            }
+        }
 
-    private void fail(int errId, Token token){
+        return word;
+    }
+
+    private Node_AST parseDefCall(Token prev, Iterator<Token> tokenIterator) throws CompilerException {
+        Token token = tokenIterator.next();
+
+        if (!token.getType().equals("RBR")){
+            fail(1, token);
+        }
+        token = tokenIterator.next();
+        if (!token.getType().equals("NEW_LINE")){
+            fail(1, token);
+        }
+        Node_AST defCall = new Node_AST(new Token(prev.getValue(), "DEF_CALL",
+                prev.getRow(), prev.getColumn()));
+        if (!defAST.containsKey(prev.getValue())){
+            fail(4, prev);
+        }
+        else {
+            defCall.appendChild(defAST.get(prev.getValue()).getRoot());
+        }
+
+        return defCall;
+    }
+
+    private void fail(int errId, Token token) throws CompilerException {
         String msg = "";
 
         switch (errId){
             case 0: {
-                msg = "Incorrect tab count in (" + token.getValue() + ") token";
+                msg = "Incorrect tab count";
                 break;
             }
             case 1: {
-                msg = "Incorrect type in (" + token.getValue() + ") token";
+                msg = "Incorrect type";
                 break;
             }
             case 2: {
-                msg = "Incorrect return type in (" + token.getValue() + ") token";
+                msg = "Cannot cast to INT";
+                break;
+            }
+            case 3: {
+                msg = "Unexpected token";
+                break;
+            }
+            case 4: {
+                msg = "Unknown method call";
                 break;
             }
         }
-        System.out.println(msg);
+        throw new CompilerException(msg, token.getRow(), token.getColumn());
     }
 
     public HashMap<String, AST> getDefAST() {
         return defAST;
+    }
+
+    public AST getMainAST() {
+        return mainAST;
     }
 }

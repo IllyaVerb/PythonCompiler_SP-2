@@ -2,7 +2,7 @@ public class Main {
     public static void main(String[] args) {
         long time = System.nanoTime();
 
-        Lexer lexer = new Lexer("start.py", true);
+        Lexer lexer = new Lexer("1-4-Java-IO-82-Verbovskyi.py", true);
 
         lexer.printTokens();
 
@@ -20,7 +20,7 @@ public class Main {
         System.out.println("\n========================================\n");
 
         ASM_Creator asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
-        String filePath = "code.asm";
+        String filePath = "1-4-Java-IO-82-Verbovskyi.asm";
         boolean success = asm_creator.createFile(filePath);
 
         time = System.nanoTime() - time;

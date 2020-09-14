@@ -236,8 +236,8 @@ public class Lexer {
             case "x": return s.matches("[\\da-fA-F]");
             case "o": return s.matches("[0-7]");
             case "b": return s.equals("1") || s.equals("0");
+            default: return false;
         }
-        return false;
     }
 
     /*private boolean parseLineRegex(String line, String pattern){

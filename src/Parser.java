@@ -114,13 +114,11 @@ public class Parser {
     }
 
     private Node_AST parseExpression(Token token) throws CompilerException {
-        Node_AST intVar = new Node_AST(null, null);
         String value = token.getValue();
 
         switch (token.getType()){
             case "INT": {
-                intVar = new Node_AST(token);
-                break;
+                return new Node_AST(token);
             }
             case "FLOAT": {
                 StringBuilder casted = new StringBuilder();
@@ -130,28 +128,24 @@ public class Parser {
                     }
                     casted.append(ch);
                 }
-                intVar = new Node_AST(new Token(casted.toString(),
+                return new Node_AST(new Token(casted.toString(),
                         "INT(FLOAT)", token.getRow(), token.getColumn()));
-                break;
             }
             case "HEXNUM": {
-                intVar = new Node_AST(new Token(Long.decode(value).toString(),
+                return new Node_AST(new Token(Long.decode(value).toString(),
                         "INT(HEXNUM)", token.getRow(), token.getColumn()));
-                break;
             }
             case "OCTNUM": {
-                intVar = new Node_AST(new Token(Integer.parseInt(value.substring(2), 8)+"",
+                return new Node_AST(new Token(Integer.parseInt(value.substring(2), 8)+"",
                         "INT(OCTNUM)", token.getRow(), token.getColumn()));
-                break;
             }
             case "BINNUM": {
-                intVar = new Node_AST(new Token(Integer.parseInt(value.substring(2), 2)+"",
+                return new Node_AST(new Token(Integer.parseInt(value.substring(2), 2)+"",
                         "INT(BINNUM)", token.getRow(), token.getColumn()));
-                break;
             }
             case "STRING": {
                 if (value.length() == 1){
-                    intVar = new Node_AST(new Token(Character.getNumericValue(value.toCharArray()[0])+"",
+                    return new Node_AST(new Token(Character.getNumericValue(value.toCharArray()[0])+"",
                             "INT(CHAR)", token.getRow(), token.getColumn()));
                 }
                 else {
@@ -160,24 +154,21 @@ public class Parser {
                 break;
             }
         }
-        return intVar;
+        return null;
     }
 
     private Node_AST parseWord(Token prev, Iterator<Token> tokenIterator) throws CompilerException {
         Token token = tokenIterator.next();
-        Node_AST word = new Node_AST(null, null);
 
         switch (token.getType()){
             case "LBR" : {
-                word = parseDefCall(prev, tokenIterator);
-                break;
+                return parseDefCall(prev, tokenIterator);
             }
             default: {
                 fail(3, token);
+                return null;
             }
         }
-
-        return word;
     }
 
     private Node_AST parseDefCall(Token prev, Iterator<Token> tokenIterator) throws CompilerException {
@@ -226,6 +217,7 @@ public class Parser {
                 msg = "Unknown method call";
                 break;
             }
+            default: msg = "Unknown error";
         }
         throw new CompilerException(msg, token.getRow(), token.getColumn());
     }

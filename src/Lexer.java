@@ -71,6 +71,7 @@ public class Lexer {
         keywords.put("with", "WITH");
         keywords.put("yield", "YIELD");
 
+        symbols.put(".", "DOT");
         symbols.put(",", "COMMA");
         symbols.put("=", "ASSIGNMENT");
         symbols.put(";", "SEMICOLON");
@@ -107,7 +108,10 @@ public class Lexer {
     }
 
     private void makeTokens(){
-        String[] parseLines = parseText.split("\n");
+        if (parseText.substring(0, 4).equals("null")){
+            parseText = parseText.substring(4);
+        }
+        String[] parseLines = parseText.split("[\n\r]");
 
         for (int i=0; i < parseLines.length; i++) {
             if (parseLine(parseLines[i], i)){
@@ -220,6 +224,7 @@ public class Lexer {
                                         throw new CompilerException("Undefined symbol", row, i);
                                     } catch (CompilerException e) {
                                         System.err.println(e.getMessage());
+                                        System.err.println((int) symbLine[i].toCharArray()[0]);
                                     }
                                 }
                             }
@@ -239,103 +244,6 @@ public class Lexer {
             default: return false;
         }
     }
-
-    /*private boolean parseLineRegex(String line, String pattern){
-        // remove comment part
-        String noCommentLine = line.split("#")[0];
-
-        // check if it is clear line
-        Pattern p = Pattern.compile("^\\s*$");
-        Matcher m = p.matcher(noCommentLine);
-        if(m.matches()){
-            return false;
-        }
-
-        Pattern tokenPattern = Pattern.compile(pattern);
-        Matcher tokenMatch = tokenPattern.matcher(noCommentLine);
-
-        while(tokenMatch.find()) {
-            String currentToken = tokenMatch.group();
-            if (keywords.containsKey(currentToken)){
-                tokens.add(new Token(currentToken, keywords.get(currentToken)));
-            }
-            else {
-                if (symbols.containsKey(currentToken)) {
-                    tokens.add(new Token(currentToken, symbols.get(currentToken)));
-                }
-                else {
-                    if (whitespace.containsKey(currentToken)) {
-                        tokens.add(new Token(currentToken, whitespace.get(currentToken)));
-                    }
-                    else {
-                        if (Pattern.compile("\\w+").matcher(currentToken).matches()) {
-                            tokens.add(new Token(currentToken, "WORD"));
-                        }
-                        else {
-                            if (Pattern.compile("0x[\\da-f]{1,6}").matcher(currentToken).matches()) {
-                                tokens.add(new Token(currentToken, "HEXNUM"));
-                            }
-                            else {
-                                if (Pattern.compile("0o[0-7]{1,6}").matcher(currentToken).matches()) {
-                                    tokens.add(new Token(currentToken, "OCTNUM"));
-                                }
-                                else {
-                                    if (Pattern.compile("0b[01]{1,6}").matcher(currentToken).matches()) {
-                                        tokens.add(new Token(currentToken, "BINNUM"));
-                                    }
-                                    else {
-                                        if (Pattern.compile("\\d+\\.\\d*").matcher(currentToken).matches()) {
-                                            tokens.add(new Token(currentToken, "FLOATNUM"));
-                                        }
-                                        else {
-                                            if (Pattern.compile("\\d+").matcher(currentToken).matches()) {
-                                                tokens.add(new Token(currentToken, "NUMBER"));
-                                            }
-                                            else {
-
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    private String makeRegexTokenPattern(){
-        Set<String> symbolsList = symbols.keySet();
-        String res = "(\\t)|( )|(0x[\\da-f]{1,6})|(0o[0-7]{1,6})|(0b[01]{1,6})"+
-                        "|(\\d+\\.?\\d*)|(\\w+)";
-
-        for (String symbol: symbolsList) {
-            String newSymbol;
-            if(symbol.length() == 1){
-                newSymbol = symbol;
-            }
-            else{
-                newSymbol = new StringBuilder(symbol).insert(1, '\\').toString();
-            }
-            res += "|(\\" + newSymbol + ")";
-        }
-
-        return res;
-    }
-
-    private  String makeRegexKeywordPattern(){
-        Set<String> keywordsList = keywords.keySet();
-        String res = "";
-
-        for (String key: keywordsList) {
-            res += "|(\\" + key + ")";
-        }
-
-        return res;
-    }*/
 
     public String getParseText() {
         return parseText;

@@ -35,15 +35,6 @@ public class Parser {
         String defName;
 
         Token token = tokenIterator.next();
-        /*while (tokens.get(index).getType().matches("(TAB)|(SPACE)")) {
-            if (tokens.get(index).getType().equals("TAB")){
-                currentSpaceTabCount[1]++;
-            }
-            else {
-                currentSpaceTabCount[0]++;
-            }
-            index++;
-        }*/
         if (!token.getType().equals("WORD")){
             fail(1, token);
         }
@@ -64,6 +55,16 @@ public class Parser {
         if (!token.getType().equals("NEW_LINE")){
             fail(1, token);
         }
+        token = tokenIterator.next();
+        while (token.getType().matches("(TAB)|(SPACE)")) {
+            if (token.getType().equals("TAB")){
+                currentSpaceTabCount[1]++;
+            }
+            else {
+                currentSpaceTabCount[0]++;
+            }
+            token = tokenIterator.next();
+        }
 
         Node_AST statement = parseStatement(token, tokenIterator, currentSpaceTabCount);
         Node_AST def = new Node_AST(new Token(defName, "DEF_WORD", prev.getRow(), prev.getColumn()));
@@ -75,25 +76,13 @@ public class Parser {
 
     private Node_AST parseStatement(Token prev, Iterator<Token> tokenIterator, int[] spaceTabCount)
             throws CompilerException {
-        int[] currentSpaceTabCount = {0, 0};
+        if (spaceTabCount[0] + spaceTabCount[1] == 0){
+            fail(0, prev);
+        }
+        if (!prev.getType().equals("RETURN")){
+            fail(1, prev);
+        }
         Token token = tokenIterator.next();
-
-        while (token.getType().matches("(TAB)|(SPACE)")) {
-            if (token.getType().equals("TAB")){
-                currentSpaceTabCount[1]++;
-            }
-            else {
-                currentSpaceTabCount[0]++;
-            }
-            token = tokenIterator.next();
-        }
-        if (currentSpaceTabCount[1] - spaceTabCount[1] != 1){
-            fail(0, token);
-        }
-        if (!token.getType().equals("RETURN")){
-            fail(1, token);
-        }
-        token = tokenIterator.next();
         if (!token.getType().equals("INT") && !token.getType().equals("FLOAT") &&
                 !token.getType().equals("HEXNUM") && !token.getType().equals("OCTNUM") &&
                 !token.getType().equals("BINNUM") && !token.getType().equals("STRING")){

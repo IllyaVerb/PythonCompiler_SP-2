@@ -133,8 +133,8 @@ public class Parser {
                         "INT(BINNUM)", token.getRow(), token.getColumn()));
             }
             case "STRING": {
-                if (value.length() == 1){
-                    return new Node_AST(new Token(Character.getNumericValue(value.toCharArray()[0])+"",
+                if (value.length() == 3){
+                    return new Node_AST(new Token((int)value.toCharArray()[1]+"",
                             "INT(CHAR)", token.getRow(), token.getColumn()));
                 }
                 else {

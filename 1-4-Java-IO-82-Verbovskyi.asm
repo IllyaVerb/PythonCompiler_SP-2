@@ -38,7 +38,7 @@ mov ebx, 258
 ret
 main ENDP
 second PROC
-mov ebx, 12
+mov ebx, 105
 ret
 second ENDP
 

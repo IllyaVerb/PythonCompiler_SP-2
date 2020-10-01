@@ -256,10 +256,10 @@ public class Lexer {
     public void printTokens() {
         for (Token token: tokens) {
             String val;
-            switch (token.getValue()){
-                case "\n": val = "\\n"; break;
-                case "\t": val = "\\t"; break;
-                case " ": val = "\\s"; break;
+            switch (token.getType()){
+                case "NEW_LINE": val = "\\n"; break;
+                case "TAB": val = "\\t"; break;
+                case "SPACE": val = "\\s"; break;
                 default: val = token.getValue();
             }
             System.out.println(String.format("[ %10s <==> %-10s ]", val, token.getType()));

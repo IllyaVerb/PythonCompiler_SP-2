@@ -1,37 +1,44 @@
-public class Main {
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.TextArea;
+import javafx.stage.Stage;
+
+import java.io.FileReader;
+import java.io.IOException;
+
+public class Main extends Application {
     public static void main(String[] args) {
-        long time = System.nanoTime();
+        Application.launch(args);
 
-        Lexer lexer = new Lexer("1-4-Java-IO-82-Verbovskyi.py", true);
+    }
 
-        lexer.printTokens();
+    @Override
+    public void start(Stage stage) throws Exception {
+        Parent root = FXMLLoader.load(getClass().getResource("Style.fxml"));
+        Scene scene = new Scene(root);
 
-        System.out.println("\n========================================\n");
+        stage.setScene(scene);
+        stage.setResizable(false);
 
-        Parser parser;
-        try {
-            parser = new Parser(lexer.getTokens());
-        } catch (CompilerException e) {
+        stage.setTitle("PythonCompiler_IllyaVerb");
+        TextArea textFilename = (TextArea) scene.lookup("#text_input_file"),
+                    textInput = (TextArea) scene.lookup("#text_input_print");
+        textFilename.setText(System.getProperty("user.dir")+"\\2-4-Java-IO-82-Verbovskyi.py");
+
+        StringBuilder code = new StringBuilder();
+        try (FileReader reader = new FileReader(textFilename.getText())) {
+            int symb;
+            while ((symb = reader.read()) != -1) {
+                code.append((char)symb);
+            }
+        } catch (IOException e) {
             System.err.println(e.getMessage());
-            return;
         }
-        parser.getMainAST().printAST();
+        textInput.setText(code.toString());
 
-        System.out.println("\n========================================\n");
 
-        ASM_Creator asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
-        String filePath = "1-4-Java-IO-82-Verbovskyi.asm";
-        boolean success = asm_creator.createFile(filePath);
-
-        time = System.nanoTime() - time;
-        if (success){
-            System.out.println("Compilation was successful,\n\t'code.asm' is located in " +
-                    System.getProperty("user.dir") + "\\" + filePath);
-            System.out.println(String.format("\tElapsed %,9.3f ms\n", time/1000000.0));
-        }
-        else {
-            System.err.println("Compilation was failed");
-        }
-
+        stage.show();
     }
 }

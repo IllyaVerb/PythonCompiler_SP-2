@@ -1,10 +1,8 @@
 public class Compiler {
     private final String input;
     private final String output;
-    private String myName;
 
-    public Compiler(String myName, String inputFilename, String outputFilename){
-        this.myName = myName;
+    public Compiler(String inputFilename, String outputFilename){
         this.input = inputFilename;
         this.output = outputFilename;
     }
@@ -28,7 +26,7 @@ public class Compiler {
 
         System.out.println("\n========================================\n");
 
-        ASM_Creator asm_creator = new ASM_Creator(myName, parser.getMainAST(), parser.getDefAST());
+        ASM_Creator asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
         boolean success = asm_creator.createFile(output);
 
         time = System.nanoTime() - time;

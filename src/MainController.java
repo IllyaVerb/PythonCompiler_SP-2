@@ -75,13 +75,13 @@ public class MainController {
     private boolean build(){
         save();
 
-        Compiler compiler = new Compiler(myName, String.format("%s.py", myName),
+        Compiler compiler = new Compiler(String.format("%s.py", myName),
                                         String.format("%s.asm", myName));
         ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        //System.setErr(ps);
+        System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 

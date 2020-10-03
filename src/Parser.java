@@ -1,5 +1,3 @@
-import javafx.scene.Node;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -17,26 +15,6 @@ public class Parser {
 
         fillTemplates();
         parseProg("PROG", tokenEnhancedIterator);
-
-        /*for (EnhancedIterator<Token> tokenIterator = new EnhancedIterator<>(tokens); tokenIterator.hasNext();) {
-
-            parseTemplate("PROG", tokenIterator, null);
-            mainAST.getRoot().getChild(0).appendChild(defAST.get("ret").getRoot());
-            Token token = tokenIterator.next();
-            switch (token.getType()){
-                case "DEF": {
-                    AST tmp = new AST(parseDef(token, tokenIterator));
-                    defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
-                    break;
-                }
-                case "WORD": {
-                    mainAST.getRoot().appendChild(parseWord(token, tokenIterator));
-                    break;
-                }
-                default:
-                    System.out.println(token.getValue() + " " + token.getType());
-            }
-        }*/
     }
 
     private void fillTemplates() {
@@ -49,155 +27,17 @@ public class Parser {
         templates.put("STAT", new String[]{"RETURN", "EXP", "NEW_LINE"});
         templates.put("EXP", new String[]{"TERM", "BIN_1", "TERM"});
         templates.put("BIN_1", new String[]{"ADD|SUB"});
-        //templates.put("EXP", new String[]{"_any", "TERM_BIN_EXP", "TERM", "_any", "_any"});
-
-        //templates.put("TERM_BIN_EXP", new String[]{"TERM", "EXP"});
 
         templates.put("TERM", new String[]{"FACTOR", "BIN_2", "FACTOR"});
         templates.put("BIN_2", new String[]{"MUL|DIV"});
-        //templates.put("TERM", new String[]{"_any", "TERM_BIN_TERM", "FACTOR", "_any", "_any"});
-
-        //templates.put("TERM_BIN_TERM", new String[]{"TERM", "BIN_2", "TERM"});
 
         templates.put("FACTOR", new String[]{"BRACE_EXP", "UNAR_FACTOR",
                 "INT|FLOAT|BINNUM|OCTNUM|HEXNUM|STRING", "_any"});
         templates.put("BRACE_EXP", new String[]{"LBR", "EXP", "RBR"});
         templates.put("UNAR_FACTOR", new String[]{"UNAR", "FACTOR"});
-        //templates.put("RET_EXP", new String[]{"_any", "EXP", "_any", "INT|FLOAT|BINNUM|OCTNUM|HEXNUM|STRING", "_any"});
         templates.put("UNAR", new String[]{"SUB|NOT", "_any"});
 
         templates.put("S", new String[]{"TAB", "SPACE"});
-    }
-
-    private Node_AST parseTemplate(String key, EnhancedIterator<Token> tokenIterator, Token forAny) throws CompilerException {
-        Node_AST returnNode = null;
-        for (int i=0; i<templates.get(key).length; i++) {
-            String part = templates.get(key)[i];
-            if (part.equals("_any")){
-                i++;
-                while (!templates.get(key)[i].equals("_any")){
-                    Node_AST tmp = parseTemplate(templates.get(key)[i], tokenIterator, forAny);
-                    if (tmp != null){
-                        return tmp;
-                    }
-                    i++;
-                }
-                i++;
-                if (!templates.get(key)[i].equals("_any")) {
-                    String[] any = templates.get(key)[i].split("\\|");
-                    for (String oneOfAny : any) {
-                        if (forAny.getType().equals(oneOfAny)) {
-                            return new Node_AST(forAny);
-                        }
-                    }
-                }
-                return null;
-            }
-            if (part.equals(("_infZero"))){
-                i++;
-                Node_AST node_oper;
-                if ((node_oper = parseTemplate(templates.get(key)[i], tokenIterator, tokenIterator.next())) != null){
-                    //node_oper.
-                }
-            }
-            if (templates.containsKey(part)) {
-                switch (part) {
-                    case "FUNC": {
-                        AST tmp = new AST(parseTemplate("FUNC", tokenIterator, null));
-                        defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
-                        break;
-                    }
-                    case "STAT":{
-                        Node_AST statement = parseTemplate("STAT", tokenIterator, null);
-                        Node_AST def = new Node_AST(new Token("ret", "RETURN",
-                                statement.getCurrent().getRow(), statement.getCurrent().getColumn()));
-                        def.appendChild(statement);
-                        statement.setParent(def);
-                        returnNode = def;
-                        break;
-                    }
-                    case "EXP":{
-                        Node_AST exp = parseTemplate("EXP", tokenIterator, null);
-                        Node_AST statement = new Node_AST(new Token(exp.getCurrent().getType(), "EXP",
-                                exp.getCurrent().getRow(), exp.getCurrent().getColumn()));
-
-                        statement.appendChild(exp);
-                        exp.setParent(statement);
-                        returnNode = statement;
-                        break;
-                    }
-                    case "TERM":{
-                        Node_AST factor = parseTemplate("TERM", tokenIterator,
-                                forAny == null ? tokenIterator.next() : forAny);
-                        if (factor == null)
-                            return null;
-
-
-                        break;
-                    }
-                    case "FACTOR":{
-                        Node_AST factor = parseTemplate("FACTOR", tokenIterator,
-                                forAny == null ? tokenIterator.next() : forAny);
-                        if (factor == null)
-                            return null;
-
-
-                        break;
-                    }
-                    case "BRACE_EXP":{
-                        if (tokenIterator.next().getType().equals("L_BRACE"))
-                            return null;
-                        Node_AST exp = parseTemplate("EXP", tokenIterator, null);
-                        Token r_brace = tokenIterator.next();
-                        if (r_brace.getType().equals("R_BRACE"))
-                            fail(3, r_brace);
-
-                        returnNode = exp;
-                        break;
-                    }
-                    case "UNAR_FACTOR":{
-                        Node_AST unar = parseTemplate("UNAR", tokenIterator,
-                                forAny == null ? tokenIterator.next() : forAny);
-                        if (unar == null)
-                            return null;
-                        Node_AST factor = parseTemplate("FACTOR", tokenIterator, tokenIterator.next());
-                        if (factor == null)
-                            fail(3, unar.getCurrent());
-
-                        unar.appendChild(factor);
-                        factor.setParent(unar);
-                        returnNode = unar;
-                        break;
-                    }
-                    case "UNAR":{
-                        Node_AST unar = parseTemplate("UNAR", tokenIterator,
-                                forAny == null ? tokenIterator.next() : forAny);
-                        if (unar == null)
-                            return null;
-                        Node_AST child = parseTemplate("RET_EXP", tokenIterator, tokenIterator.next());
-                        if (child == null)
-                            fail(3, unar.getCurrent());
-
-                        unar.appendChild(child);
-                        child.setParent(unar);
-                        returnNode = unar;
-                        break;
-                    }
-                    case "CALL":{
-                        parseTemplate("CALL", tokenIterator, null);
-                        mainAST.getRoot().appendChild(new Node_AST(new Token("main", "DEF_CALL", 0, 0)));
-                        break;
-                    }
-                }
-            }
-            else {
-                Token token = tokenIterator.next();
-                if (!token.getType().equals(part)){
-                    fail(1, token);
-                }
-            }
-        }
-        return returnNode;
     }
 
     private void parseProg(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {

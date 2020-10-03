@@ -22,7 +22,7 @@ public class Main extends Application {
         Scene scene = new Scene(root);
 
         stage.setScene(scene);
-        stage.setResizable(false);
+        //stage.setResizable(false);
 
         stage.setTitle("PythonCompiler_IllyaVerb");
         TextArea textFilename = (TextArea) scene.lookup("#text_input_file"),

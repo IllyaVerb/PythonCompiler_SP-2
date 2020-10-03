@@ -3,22 +3,22 @@ import java.io.IOException;
 import java.util.HashMap;
 
 public class ASM_Creator {
-    private AST ast;
-    private HashMap<String, AST> defAST;
-    private HashMap<String, String> operationBlocks;
-    private String asmCode;
+    private final AST ast;
+    private final HashMap<String, AST> defAST;
+    private final HashMap<String, String> operationBlocks;
+    private final String asmCode;
 
     private String masmTemplate = ".386\n" +
             ".model flat,stdcall\n" +
             "option casemap:none\n\n" +
-            "include     %1$s\\%2$s\\masm32\\include\\windows.inc\n" +
-            "include     %1$s\\%2$s\\masm32\\include\\kernel32.inc\n" +
-            "include     %1$s\\%2$s\\masm32\\include\\masm32.inc\n" +
-            "includelib  %1$s\\%2$s\\masm32\\lib\\kernel32.lib\n" +
-            "includelib  %1$s\\%2$s\\masm32\\lib\\masm32.lib\n\n" +
+            "include     ..\\include\\windows.inc\n" +
+            "include     ..\\include\\kernel32.inc\n" +
+            "include     ..\\include\\masm32.inc\n" +
+            "includelib  ..\\lib\\kernel32.lib\n" +
+            "includelib  ..\\lib\\masm32.lib\n\n" +
             "_NumbToStr   PROTO :DWORD,:DWORD\n" +
             "_main        PROTO\n\n" +
-            "%3$s\n" + // insert prototype of functions
+            "%s\n" + // insert prototype of functions
             ".data\n" +
             "buff        db 11 dup(?)\n\n" +
             ".code\n" +
@@ -28,10 +28,10 @@ public class ASM_Creator {
             "\tinvoke  StdOut,eax\n" +
             "\tinvoke  ExitProcess,0\n\n" +
             "_main PROC\n\n" +
-            "%4$s" + // insert code
+            "%s" + // insert code
             "\n\tret\n\n" +
             "_main ENDP\n\n" +
-            "%5$s" + // insert functions
+            "%s" + // insert functions
             "\n_NumbToStr PROC uses ebx x:DWORD,buffer:DWORD\n\n" +
             "\tmov     ecx,buffer\n" +
             "\tmov     eax,x\n" +
@@ -51,15 +51,14 @@ public class ASM_Creator {
             "_NumbToStr ENDP\n\n" +
             "END _start\n";
 
-    public ASM_Creator(String myName, AST ast, HashMap<String, AST> defAST){
+    public ASM_Creator(AST ast, HashMap<String, AST> defAST){
         this.ast = ast;
         this.defAST = defAST;
         this.operationBlocks = new HashMap<>();
         loadOperationBlocks();
 
         String[] functions = createFunctions();
-        this.asmCode = String.format(masmTemplate, System.getProperty("user.dir"), myName,
-                functions[0], mainCode(), functions[1]);
+        this.asmCode = String.format(masmTemplate, functions[0], mainCode(), functions[1]);
 
     }
 

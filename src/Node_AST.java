@@ -1,9 +1,9 @@
 import java.util.ArrayList;
 
 public class Node_AST {
-    private Token current;
+    private final Token current;
     private Node_AST parent;
-    private ArrayList<Node_AST> children;
+    private final ArrayList<Node_AST> children;
 
     public Node_AST(Token token){
         this.current = token;

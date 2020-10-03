@@ -5,6 +5,7 @@ import java.util.HashMap;
 public class ASM_Creator {
     private AST ast;
     private HashMap<String, AST> defAST;
+    private HashMap<String, String> operationBlocks;
     private String asmCode;
 
     private String masmTemplate = ".386\n" +
@@ -53,9 +54,54 @@ public class ASM_Creator {
     public ASM_Creator(AST ast, HashMap<String, AST> defAST){
         this.ast = ast;
         this.defAST = defAST;
+        this.operationBlocks = new HashMap<>();
+        loadOperationBlocks();
 
         String[] functions = createFunctions();
         this.asmCode = String.format(masmTemplate, functions[0], mainCode(), functions[1]);
+
+    }
+
+    private void loadOperationBlocks() {
+        operationBlocks.put("NOT",  "\n\npop ebx\t; not\n" +
+                                    "xor eax, eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "sete al\n" +
+                                    "push eax");
+
+        operationBlocks.put("ADD",  "\n\npop ebx\t; add\n" +
+                                    "pop eax\n" +
+                                    "add ebx, eax\n" +
+                                    "push ebx");
+
+        operationBlocks.put("UNAR_ADD", "\n\n\t\t; unar add\n");
+
+        operationBlocks.put("SUB", "\n\npop ebx\t; sub\n" +
+                                    "pop eax\n" +
+                                    "sub eax, ebx\n" +
+                                    "push eax");
+
+        operationBlocks.put("UNAR_SUB", "\n\npop ebx\t; unar sub\n" +
+                                        "neg ebx\n" +
+                                        "push ebx");
+
+        operationBlocks.put("MUL",  "\n\npop ebx\t; mul\n" +
+                                    "pop eax\n" +
+                                    "imul ebx, eax\n" +
+                                    "push ebx");
+
+        operationBlocks.put("DIV",  "\n\npop ebx\t; div\n" +
+                                    "pop eax\n" +
+                                    "cdq\n" +
+                                    "idiv ebx\n" +
+                                    "push eax");
+
+        operationBlocks.put("INT", "\n\npush %s\t; int\n");
+        operationBlocks.put("INT(CHAR)", "\n\npush %s\t; int(char)\n");
+        operationBlocks.put("INT(FLOAT)", "\n\npush %s\t; int(float)\n");
+        operationBlocks.put("INT(BINNUM)", "\n\npush %s\t; int(binnum)\n");
+        operationBlocks.put("INT(OCTNUM)", "\n\npush %s\t; int(octnum)\n");
+        operationBlocks.put("INT(HEXNUM)", "\n\npush %s\t; int(hexnum)\n");
     }
 
     public boolean createFile(String fileName){
@@ -80,8 +126,8 @@ public class ASM_Creator {
             for (Node_AST child: defAST.get(defName).getRoot().getChildren()) {
                 // do smth what is function body
                 if (child.getCurrent().getType().equals("RETURN")){
-                    String retVar = child.getChild(0).getCurrent().getValue();
-                    funcTempl += String.format("mov ebx, %s\nret\n", retVar);
+                    String retVar = genExpCode(child.getChild(0));
+                    funcTempl += String.format("%s\n\npop ebx\nret\n", retVar);
                     break;
                 }
             }
@@ -90,6 +136,36 @@ public class ASM_Creator {
         }
 
         return functions;
+    }
+
+    private String genExpCode(Node_AST current) {
+        switch (current.getCurrent().getType()){
+            case "UNAR_ADD":
+            case "UNAR_SUB":
+            case "NOT":{
+                return genExpCode(current.getChild(0))+
+                        operationBlocks.get(current.getCurrent().getType());
+            }
+            case "SUB":
+            case "DIV":
+            case "MUL":
+            case "ADD":{
+                return genExpCode(current.getChild(0))+
+                        genExpCode(current.getChild(1))+
+                    operationBlocks.get(current.getCurrent().getType());
+            }
+            case "INT(CHAR)":
+            case "INT(BINNUM)":
+            case "INT(HEXNUM)":
+            case "INT(OCTNUM)":
+            case "INT(FLOAT)":
+            case "INT":{
+                return String.format(operationBlocks.get(current.getCurrent().getType()),
+                                                        current.getCurrent().getValue());
+            }
+            default:
+                return "Unknown operation "+current.getCurrent().getType();
+        }
     }
 
     private String mainCode(){

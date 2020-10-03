@@ -7,17 +7,20 @@ import java.util.Map;
 public class Lexer {
     private String parseText;
 
-    private Map<String, String> keywords;
-    private Map<String, String> symbols;
-    private Map<String, String> whitespace;
+    private final Map<String, String> keywords;
+    private final Map<String, String> symbols;
+    private final Map<String, String> whitespace;
 
-    private ArrayList<Token> tokens = new ArrayList<>();
+    private final ArrayList<Token> tokens = new ArrayList<>();
 
     public Lexer(String nameFile, boolean isFile){
         keywords = new HashMap<>();
         symbols = new HashMap<>();
         whitespace = new HashMap<>();
+        parseText = "";
+
         fillMaps();
+        tokens.add(new Token("null", "START", -1, -1));
 
         if(isFile) {
             try (FileReader reader = new FileReader(nameFile)) {
@@ -108,7 +111,7 @@ public class Lexer {
     }
 
     private void makeTokens(){
-        if (parseText.substring(0, 4).equals("null")){
+        if (parseText.startsWith("null")){
             parseText = parseText.substring(4);
         }
         String[] parseLines = parseText.split("[\n\r]");
@@ -262,7 +265,7 @@ public class Lexer {
                 case "SPACE": val = "\\s"; break;
                 default: val = token.getValue();
             }
-            System.out.println(String.format("[ %10s <==> %-10s ]", val, token.getType()));
+            System.out.printf("[ %10s <==> %-10s ]%n", val, token.getType());
         }
     }
 }

@@ -8,13 +8,13 @@ import java.io.*;
 
 public class MainController {
     @FXML
-    private Button btnOpenFile, btnSave, btnSaveAs, btnBuild, btnRun;
+    private Button btnOpenFile, btnSaveAs;
 
     @FXML
     private TextArea textInput, textFileName, textConsole, textASM;
 
     @FXML
-    private void openFile(MouseEvent mouseEvent){
+    private void openFile(){
         FileChooser chooser = new FileChooser();
         String currentDir = System.getProperty("user.dir");
         File file = new File(currentDir);
@@ -42,12 +42,12 @@ public class MainController {
     }
 
     @FXML
-    private void save(MouseEvent mouseEvent){
+    private void save(){
         writeToFile(textFileName.getText(), textInput.getText());
     }
 
     @FXML
-    private void saveAs(MouseEvent mouseEvent){
+    private void saveAs(){
         FileChooser chooser = new FileChooser();
         File file = new File(textFileName.getText());
         chooser.setInitialFileName(file.getName());
@@ -70,8 +70,8 @@ public class MainController {
     }
 
     @FXML
-    private boolean build(MouseEvent mouseEvent){
-        save(mouseEvent);
+    private boolean build(){
+        save();
 
         Compiler compiler = new Compiler("2-4-Java-IO-82-Verbovskyi.py",
                                         "2-4-Java-IO-82-Verbovskyi.asm");
@@ -84,6 +84,7 @@ public class MainController {
         boolean compilationResult = compiler.compile();
 
         textConsole.setText(consoleOutput.toString());
+
         if (compilationResult)
             textASM.setText(readFromFile("2-4-Java-IO-82-Verbovskyi.asm"));
 
@@ -91,8 +92,8 @@ public class MainController {
     }
 
     @FXML
-    private void run(MouseEvent mouseEvent){
-        if (!build(mouseEvent))
+    private void run(){
+        if (!build())
             return;
 
         String startBat =   "copy 2-4-Java-IO-82-Verbovskyi.asm masm32\\bin\\\n"+
@@ -108,7 +109,7 @@ public class MainController {
                 "start /MIN 2-4-Java-IO-82-Verbovskyi-run.bat");
         builder.redirectErrorStream(true);
         try {
-            Process p = builder.start();
+            builder.start();
         } catch (IOException e) {
             e.printStackTrace();
         }

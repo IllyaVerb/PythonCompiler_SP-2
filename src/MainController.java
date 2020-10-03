@@ -7,6 +7,8 @@ import javafx.stage.FileChooser;
 import java.io.*;
 
 public class MainController {
+    private String myName = "2-4-Java-IO-82-Verbovskyi";
+
     @FXML
     private Button btnOpenFile, btnSaveAs;
 
@@ -73,20 +75,20 @@ public class MainController {
     private boolean build(){
         save();
 
-        Compiler compiler = new Compiler("2-4-Java-IO-82-Verbovskyi.py",
-                                        "2-4-Java-IO-82-Verbovskyi.asm");
+        Compiler compiler = new Compiler(myName, String.format("%s.py", myName),
+                                        String.format("%s.asm", myName));
         ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        System.setErr(ps);
+        //System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 
         textConsole.setText(consoleOutput.toString());
 
         if (compilationResult)
-            textASM.setText(readFromFile("2-4-Java-IO-82-Verbovskyi.asm"));
+            textASM.setText(readFromFile(String.format("%s.asm", myName)));
 
         return compilationResult;
     }
@@ -96,17 +98,17 @@ public class MainController {
         if (!build())
             return;
 
-        String startBat =   "copy 2-4-Java-IO-82-Verbovskyi.asm masm32\\bin\\\n"+
-                            "cd masm32\\bin\\\n"+
-                            "ml /coff 2-4-Java-IO-82-Verbovskyi.asm -link /subsystem:console\n"+
-                            "start cmd /c 2-4-Java-IO-82-Verbovskyi.exe ^& echo. ^& pause\n"+
+        String startBat =   "copy %1$s.asm %1$s\\masm32\\bin\\\n"+
+                            "cd %1$s\\masm32\\bin\\\n"+
+                            "ml /coff %1$s.asm -link /subsystem:console\n"+
+                            "start cmd /c %1$s.exe ^& echo. ^& pause\n"+
                             "exit";
-        writeToFile("2-4-Java-IO-82-Verbovskyi-run.bat", startBat);
+        writeToFile(String.format("%s-tmp.bat", myName), String.format(startBat, myName));
 
         ProcessBuilder builder = new ProcessBuilder(
                 "cmd.exe",
                 "/c",
-                "start /MIN 2-4-Java-IO-82-Verbovskyi-run.bat");
+                String.format("start /MIN %s-tmp.bat", myName));
         builder.redirectErrorStream(true);
         try {
             builder.start();

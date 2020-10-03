@@ -9,6 +9,8 @@ import java.io.FileReader;
 import java.io.IOException;
 
 public class Main extends Application {
+    private String myName = "2-4-Java-IO-82-Verbovskyi";
+
     public static void main(String[] args) {
         Application.launch(args);
 
@@ -25,7 +27,7 @@ public class Main extends Application {
         stage.setTitle("PythonCompiler_IllyaVerb");
         TextArea textFilename = (TextArea) scene.lookup("#text_input_file"),
                     textInput = (TextArea) scene.lookup("#text_input_print");
-        textFilename.setText(System.getProperty("user.dir")+"\\2-4-Java-IO-82-Verbovskyi.py");
+        textFilename.setText(String.format("%s\\%s.py", System.getProperty("user.dir"), myName));
 
         StringBuilder code = new StringBuilder();
         try (FileReader reader = new FileReader(textFilename.getText())) {

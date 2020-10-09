@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 public class Parser {
@@ -128,43 +129,94 @@ public class Parser {
     }
 
     private Node_AST parseExp(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        Node_AST term = parseTerm("TERM", tokenEnhancedIterator),
-                    oper = null;
+        Node_AST termLeft = parseTerm("TERM", tokenEnhancedIterator),
+                    topOperSign = null;
+        ArrayList<Node_AST> nodeQueue = new ArrayList<>(),
+                            operQueue = new ArrayList<>();
+        nodeQueue.add(termLeft);
+
         Token token = tokenEnhancedIterator.next();
         tokenEnhancedIterator.previous();
-        while (token.getType().matches("(ADD)|(SUB)")){
-            tokenEnhancedIterator.next();
-            oper = new Node_AST(token);
-            Node_AST nextTerm = parseTerm("TERM", tokenEnhancedIterator);
-            oper.appendChild(term);
-            oper.appendChild(nextTerm);
-            term.setParent(oper);
-            nextTerm.setParent(oper);
-            token = tokenEnhancedIterator.next();
-            tokenEnhancedIterator.previous();
+
+        if (token.getType().matches("(ADD)|(SUB)")) {
+            while (token.getType().matches("(ADD)|(SUB)")) {
+                tokenEnhancedIterator.next();
+
+                operQueue.add(new Node_AST(token));
+                nodeQueue.add(parseTerm("TERM", tokenEnhancedIterator));
+
+                token = tokenEnhancedIterator.next();
+                tokenEnhancedIterator.previous();
+            }
+            Collections.reverse(operQueue);
+            Collections.reverse(nodeQueue);
+
+            EnhancedIterator<Node_AST> enhancedIteratorOper = new EnhancedIterator<>(operQueue);
+            EnhancedIterator<Node_AST> enhancedIteratorNode = new EnhancedIterator<>(nodeQueue);
+            topOperSign = enhancedIteratorOper.next();
+            topOperSign.appendChild(enhancedIteratorNode.next());
+
+            while (enhancedIteratorOper.hasNext()) {
+                Node_AST deepest = topOperSign.getDeepestLeft(),
+                        tmpOper = enhancedIteratorOper.next(),
+                        tmpNode = enhancedIteratorNode.next();
+
+                tmpOper.appendChild(tmpNode);
+                tmpNode.setParent(tmpOper);
+
+                deepest.setFirstChild(tmpOper);
+                tmpOper.setParent(deepest);
+            }
+            topOperSign.getDeepestLeft().setFirstChild(enhancedIteratorNode.next());
         }
 
-        return oper == null ? term : oper;
+        return topOperSign == null ? termLeft : topOperSign;
     }
 
     private Node_AST parseTerm(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        Node_AST factor = parseFactor("FACTOR", tokenEnhancedIterator),
-                oper = null;
+        Node_AST factorLeft = parseFactor("FACTOR", tokenEnhancedIterator),
+                topOperSign = null;
+
+        ArrayList<Node_AST> nodeQueue = new ArrayList<>(),
+                operQueue = new ArrayList<>();
+        nodeQueue.add(factorLeft);
+
         Token token = tokenEnhancedIterator.next();
         tokenEnhancedIterator.previous();
-        while (token.getType().matches("(MUL)|(DIV)|(INT_DIV)")){
-            tokenEnhancedIterator.next();
-            oper = new Node_AST(token);
-            Node_AST nextTerm = parseFactor("FACTOR", tokenEnhancedIterator);
-            oper.appendChild(factor);
-            oper.appendChild(nextTerm);
-            factor.setParent(oper);
-            nextTerm.setParent(oper);
-            token = tokenEnhancedIterator.next();
-            tokenEnhancedIterator.previous();
+
+        if (token.getType().matches("(MUL)|(DIV)|(INT_DIV)")) {
+            while (token.getType().matches("(MUL)|(DIV)|(INT_DIV)")) {
+                tokenEnhancedIterator.next();
+
+                operQueue.add(new Node_AST(token));
+                nodeQueue.add(parseFactor("FACTOR", tokenEnhancedIterator));
+
+                token = tokenEnhancedIterator.next();
+                tokenEnhancedIterator.previous();
+            }
+            Collections.reverse(operQueue);
+            Collections.reverse(nodeQueue);
+
+            EnhancedIterator<Node_AST> enhancedIteratorOper = new EnhancedIterator<>(operQueue);
+            EnhancedIterator<Node_AST> enhancedIteratorNode = new EnhancedIterator<>(nodeQueue);
+            topOperSign = enhancedIteratorOper.next();
+            topOperSign.appendChild(enhancedIteratorNode.next());
+
+            while (enhancedIteratorOper.hasNext()) {
+                Node_AST deepest = topOperSign.getDeepestLeft(),
+                        tmpOper = enhancedIteratorOper.next(),
+                        tmpNode = enhancedIteratorNode.next();
+
+                tmpOper.appendChild(tmpNode);
+                tmpNode.setParent(tmpOper);
+
+                deepest.setFirstChild(tmpOper);
+                tmpOper.setParent(deepest);
+            }
+            topOperSign.getDeepestLeft().setFirstChild(enhancedIteratorNode.next());
         }
 
-        return oper == null ? factor : oper;
+        return topOperSign == null ? factorLeft : topOperSign;
     }
 
     private Node_AST parseFactor(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {

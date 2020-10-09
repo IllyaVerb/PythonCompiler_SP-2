@@ -39,6 +39,39 @@ public class Node_AST {
         return children.get(id);
     }
 
+    public Node_AST getDeepestLeft(){
+        return goDeeperLeft(this);
+    }
+
+    private Node_AST goDeeperLeft(Node_AST start){
+        if (start.getChildren().size() > 1)
+            return goDeeperLeft(start.getChild(0));
+        else
+            return start;
+    }
+
+    public Node_AST getDeepestRight(){
+        return goDeeperRight(this);
+    }
+
+    private Node_AST goDeeperRight(Node_AST start){
+        if (start.getChildren().size() > 1)
+            return goDeeperRight(start.getChild(1));
+        else
+            return start;
+    }
+
+    public Node_AST getDeepestSolo(){
+        return goDeeperSolo(this);
+    }
+
+    private Node_AST goDeeperSolo(Node_AST start){
+        if (start.getChildren().size() > 0)
+            return goDeeperSolo(start.getChild(0));
+        else
+            return start;
+    }
+
     public void setParent(Node_AST parent) {
         this.parent = parent;
     }
@@ -49,5 +82,9 @@ public class Node_AST {
 
     public void appendChild(Node_AST child){
         children.add(child);
+    }
+
+    public void setFirstChild(Node_AST child){
+        insertChild(0, child);
     }
 }

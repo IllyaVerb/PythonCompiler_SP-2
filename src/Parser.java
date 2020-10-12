@@ -26,17 +26,18 @@ public class Parser {
                                             "S", "STAT"});
 
         templates.put("STAT", new String[]{"RETURN", "EXP", "NEW_LINE"});
-        templates.put("EXP", new String[]{"TERM", "BIN_1", "TERM"});
+        templates.put("EXP", new String[]{"WORD", "ASSIGN", "EXP|ADDD"});
+        templates.put("ADDD", new String[]{"TERM", "BIN_1", "TERM"});
         templates.put("BIN_1", new String[]{"ADD|SUB"});
 
         templates.put("TERM", new String[]{"FACTOR", "BIN_2", "FACTOR"});
         templates.put("BIN_2", new String[]{"MUL|DIV"});
 
         templates.put("FACTOR", new String[]{"BRACE_EXP", "UNAR_FACTOR",
-                "INT|FLOAT|BINNUM|OCTNUM|HEXNUM|STRING", "_any"});
+                "INT|FLOAT|BINNUM|OCTNUM|HEXNUM|STRING"});
         templates.put("BRACE_EXP", new String[]{"LBR", "EXP", "RBR"});
         templates.put("UNAR_FACTOR", new String[]{"UNAR", "FACTOR"});
-        templates.put("UNAR", new String[]{"SUB|NOT", "_any"});
+        templates.put("UNAR", new String[]{"SUB|NOT"});
 
         templates.put("S", new String[]{"TAB", "SPACE"});
     }
@@ -44,7 +45,7 @@ public class Parser {
     private void parseProg(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         while (tokenEnhancedIterator.next().getType().equals("DEF")){
             tokenEnhancedIterator.previous();
-            AST tmp = new AST(parseDef("FUNC", tokenEnhancedIterator));
+            AST tmp = new AST(parseFunc("FUNC", tokenEnhancedIterator));
             defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
         }
         tokenEnhancedIterator.previous();
@@ -57,11 +58,59 @@ public class Parser {
         }
     }
 
-    private Node_AST parseDef(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
+    private Node_AST parseFunc(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         int[] currentSpaceTabCount = {0, 0};
         String defName = "";
-        Token token;
+        Token token = tokenEnhancedIterator.next();
         Node_AST def = null;
+
+        if (!token.getType().equals("DEF")){
+            fail(1, token);
+        }
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("WORD")){
+            fail(1, token);
+        }
+        defName = token.getValue();
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("LBR")){
+            fail(1, token);
+        }
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("RBR")){
+            fail(1, token);
+        }
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("COLON")){
+            fail(1, token);
+        }
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("NEW_LINE")){
+            fail(1, token);
+        }
+
+        token = tokenEnhancedIterator.next();
+        if (!token.getType().equals("TAB") || !token.getType().equals("SPACE")){
+            fail(1, token);
+        }
+        while (token.getType().matches("(TAB)|(SPACE)")) {
+            if (token.getType().equals("TAB")){
+                currentSpaceTabCount[1]++;
+            }
+            else {
+                currentSpaceTabCount[0]++;
+            }
+            token = tokenEnhancedIterator.next();
+        }
+        if (currentSpaceTabCount[0] + currentSpaceTabCount[1] == 0){
+            fail(0, token);
+        }
+
 
         for (String part : templates.get(key)) {
             token = tokenEnhancedIterator.next();
@@ -128,7 +177,11 @@ public class Parser {
         return statement;
     }
 
-    private Node_AST parseExp(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
+    private Node_AST parseExp(String exp, EnhancedIterator<Token> tokenEnhancedIterator) {
+
+    }
+
+    private Node_AST parseAdd(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Node_AST termLeft = parseTerm("TERM", tokenEnhancedIterator),
                     topOperSign = null;
         ArrayList<Node_AST> nodeQueue = new ArrayList<>(),
@@ -224,7 +277,7 @@ public class Parser {
 
         Node_AST oper;
         if (token.getType().equals("LBR")){
-            Node_AST exp = parseExp("EXP", tokenEnhancedIterator);
+            Node_AST exp = parseAdd("EXP", tokenEnhancedIterator);
             if (!tokenEnhancedIterator.next().getType().equals("RBR")){
                 fail(5, tokenEnhancedIterator.next());
             }

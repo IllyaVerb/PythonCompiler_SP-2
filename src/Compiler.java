@@ -13,7 +13,7 @@ public class Compiler {
 
         lexer.printTokens();
         System.out.println("\n========================================\n");
-
+/*
         Parser parser;
         try {
             parser = new Parser(lexer.getTokens());
@@ -39,6 +39,7 @@ public class Compiler {
         else {
             System.err.println("Compilation was failed");
             return false;
-        }
+        }*/
+        return true;
     }
 }

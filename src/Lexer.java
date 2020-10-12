@@ -76,7 +76,7 @@ public class Lexer {
 
         symbols.put(".", "DOT");
         symbols.put(",", "COMMA");
-        symbols.put("=", "ASSIGNMENT");
+        symbols.put("=", "ASSIGN");
         symbols.put(";", "SEMICOLON");
         symbols.put("'", "QUOTE");
         symbols.put("\"", "DBQUOTE");
@@ -88,6 +88,7 @@ public class Lexer {
         symbols.put("**", "POW");
         symbols.put("/", "DIV");
         symbols.put("//", "INT_DIV");
+        symbols.put("%", "PERCENT");
         symbols.put("?", "QUESTION");
         symbols.put(":", "COLON");
         symbols.put("<", "LT");
@@ -101,9 +102,11 @@ public class Lexer {
         symbols.put("]", "RSBR");
         symbols.put("{", "LBRC");
         symbols.put("}", "RBRC");
-        symbols.put("&", "LOGIC_AND");
-        symbols.put("|", "LOGIC_OR");
-        symbols.put("^", "LOGIC_XOR");
+        symbols.put("<<", "L_SHIFT");
+        symbols.put(">>", "R_SHIFT");
+        symbols.put("&", "BIT_AND");
+        symbols.put("|", "BIT_OR");
+        symbols.put("^", "BIT_XOR");
 
         whitespace.put(" ", "SPACE");
         whitespace.put("\t", "TAB");

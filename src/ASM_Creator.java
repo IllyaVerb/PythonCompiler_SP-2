@@ -3,6 +3,9 @@ import java.io.IOException;
 import java.util.HashMap;
 
 public class ASM_Creator {
+    private static final int MAX_LOCAL_VARS = 25;
+
+    private int clauseNum;
     private final AST ast;
     private final HashMap<String, AST> defAST;
     private final HashMap<String, String> operationBlocks;
@@ -11,12 +14,7 @@ public class ASM_Creator {
     private String masmTemplate = ".386\n" +
             ".model flat,stdcall\n" +
             "option casemap:none\n\n" +
-            "include     ..\\include\\masm32rt.inc\n" +
-            //"include     ..\\include\\windows.inc\n" +
-            //"include     ..\\include\\kernel32.inc\n" +
-            //"include     ..\\include\\masm32.inc\n" +
-            //"includelib  ..\\lib\\kernel32.lib\n" +
-            //"includelib  ..\\lib\\masm32.lib\n\n" +
+            "include     ..\\include\\masm32rt.inc\n\n" +
             "_NumbToStr   PROTO :DWORD,:DWORD\n" +
             "_main        PROTO\n\n" +
             "%s\n" + // insert prototype of functions
@@ -52,10 +50,11 @@ public class ASM_Creator {
             "_NumbToStr ENDP\n\n" +
             "END _start\n";
 
-    public ASM_Creator(AST ast, HashMap<String, AST> defAST){
+    public ASM_Creator(AST ast, HashMap<String, AST> defAST) throws CompilerException {
         this.ast = ast;
         this.defAST = defAST;
         this.operationBlocks = new HashMap<>();
+        this.clauseNum = 0;
         loadOperationBlocks();
 
         String[] functions = createFunctions();
@@ -64,27 +63,29 @@ public class ASM_Creator {
     }
 
     private void loadOperationBlocks() {
+        /* Operations for 1 args */
         operationBlocks.put("NOT",  "\n\npop ebx\t; not\n" +
                                     "xor eax, eax\n" +
                                     "cmp eax, ebx\n" +
                                     "sete al\n" +
                                     "push eax");
 
+        operationBlocks.put("UNAR_ADD", "\n\n\t\t; unar add\n");
+
+        operationBlocks.put("UNAR_SUB", "\n\npop ebx\t; unar sub\n" +
+                                        "neg ebx\n" +
+                                        "push ebx");
+
+        /* Operations for 2 args */
         operationBlocks.put("ADD",  "\n\npop ebx\t; add\n" +
                                     "pop eax\n" +
                                     "add ebx, eax\n" +
                                     "push ebx");
 
-        operationBlocks.put("UNAR_ADD", "\n\n\t\t; unar add\n");
-
-        operationBlocks.put("SUB", "\n\npop ebx\t; sub\n" +
+        operationBlocks.put("SUB",  "\n\npop ebx\t; sub\n" +
                                     "pop eax\n" +
                                     "sub eax, ebx\n" +
                                     "push eax");
-
-        operationBlocks.put("UNAR_SUB", "\n\npop ebx\t; unar sub\n" +
-                                        "neg ebx\n" +
-                                        "push ebx");
 
         operationBlocks.put("MUL",  "\n\npop ebx\t; mul\n" +
                                     "pop eax\n" +
@@ -97,12 +98,94 @@ public class ASM_Creator {
                                     "idiv ebx\n" +
                                     "push eax");
 
-        operationBlocks.put("INT", "\n\npush %s\t; int\n");
-        operationBlocks.put("INT(CHAR)", "\n\npush %s\t; int(char)\n");
-        operationBlocks.put("INT(FLOAT)", "\n\npush %s\t; int(float)\n");
-        operationBlocks.put("INT(BINNUM)", "\n\npush %s\t; int(binnum)\n");
-        operationBlocks.put("INT(OCTNUM)", "\n\npush %s\t; int(octnum)\n");
-        operationBlocks.put("INT(HEXNUM)", "\n\npush %s\t; int(hexnum)\n");
+        operationBlocks.put("L_SHIFT",  "\n\npop ebx\t; left shift\n" +
+                                        "pop eax\n" +
+                                        "sal eax, ebx\n" +
+                                        "push eax");
+
+        operationBlocks.put("R_SHIFT",  "\n\npop ebx\t; right shift\n" +
+                                        "pop eax\n" +
+                                        "sar eax, ebx\n" +
+                                        "push eax");
+
+        operationBlocks.put("EQ",   "\n\npop ebx\t; equal\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "sete al\n" +
+                                    "push eax");
+
+        operationBlocks.put("NE",   "\n\npop ebx\t; not equal\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "setne al\n" +
+                                    "push eax");
+
+        operationBlocks.put("GE",   "\n\npop ebx\t; great or equal\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "setge al\n" +
+                                    "push eax");
+
+        operationBlocks.put("LE",   "\n\npop ebx\t; less or equal\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "setle al\n" +
+                                    "push eax");
+
+        operationBlocks.put("GT",   "\n\npop ebx\t; great then\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "setg al\n" +
+                                    "push eax");
+
+        operationBlocks.put("LT",   "\n\npop ebx\t; less then\n" +
+                                    "pop eax\n" +
+                                    "cmp eax, ebx\n" +
+                                    "mov eax, 0\n" +
+                                    "setl al\n" +
+                                    "push eax");
+
+        operationBlocks.put("AND",  "\n\npop eax\t; and\n" +
+                                    "cmp eax, 0\n" +
+                                    "jne _clause%1$d\n" +
+                                    "jmp _end%1$d\n" +
+                                    "_clause%1$d:\n" +
+                                    "\n%2$s" +
+                                    "\n\npop eax\n" +
+                                    "cmp eax, 0\n" +
+                                    "mov eax, 0\n" +
+                                    "setne al\n" +
+                                    "_end%1$d:\n" +
+                                    "push eax");
+
+        operationBlocks.put("OR",  "\n\npop eax\t; or\n" +
+                                    "cmp eax, 0\n" +
+                                    "je _clause%1$d\n" +
+                                    "mov eax, 1\n" +
+                                    "jmp _end%1$d\n" +
+                                    "_clause%1$d:\n" +
+                                    "\n%2$s" +
+                                    "\n\npop eax\n" +
+                                    "cmp eax, 0\n" +
+                                    "mov eax, 0\n" +
+                                    "setne al\n" +
+                                    "_end%1$d:\n" +
+                                    "push eax");
+
+        operationBlocks.put("INT", "\n\npush %s\t; int");
+        operationBlocks.put("INT(CHAR)", "\n\npush %s\t; int(char)");
+        operationBlocks.put("INT(FLOAT)", "\n\npush %s\t; int(float)");
+        operationBlocks.put("INT(BINNUM)", "\n\npush %s\t; int(binnum)");
+        operationBlocks.put("INT(OCTNUM)", "\n\npush %s\t; int(octnum)");
+        operationBlocks.put("INT(HEXNUM)", "\n\npush %s\t; int(hexnum)");
+
+        operationBlocks.put("ID",   "\n\nmov ebx, [%d+ebp+4]\t; get var: %s\n" +
+                                    "push ebx");
     }
 
     public boolean createFile(String fileName){
@@ -118,42 +201,93 @@ public class ASM_Creator {
         }
     }
 
-    private String[] createFunctions(){
+    private String[] createFunctions() throws CompilerException {
+        /* 0 - PROTO, 1 - functions */
         String[] functions = {"" ,""};
 
         for (String defName: defAST.keySet()) {
-            functions[0] += String.format("%s\tPROTO\n", defName);
-            String funcTempl = String.format("%s PROC\n", defName);
+            /* make PROTO for {defName} */
+            functions[0] += String.format("%s PROTO\n", defName);
+
+            /* make {defName} prolog */
+            String funcTempl = String.format(   "%s PROC\n" +
+                                                "mov ebp, esp\n" +
+                                                "add esp, %d\n", defName, MAX_LOCAL_VARS*4);
+            boolean retFlag = false;
+            HashMap<String, Integer> localVars = new HashMap<>();
+            int vars = 0;
+
             for (Node_AST child: defAST.get(defName).getRoot().getChildren()) {
-                // do smth what is function body
-                if (child.getCurrent().getType().equals("RETURN")){
-                    String retVar = genExpCode(child.getChild(0));
-                    funcTempl += String.format("%s\n\npop ebx\nret\n", retVar);
-                    break;
+                switch (child.getCurrent().getType()){
+                    case "RETURN":{
+                        String retVar = genExpCode(localVars, child.getChild(0));
+                        funcTempl += retVar;
+                        retFlag = true;
+                        break;
+                    }
+                    case "ID":{
+                        if (child.getChildren().size() == 0){
+                            throw new CompilerException("Variable referenced before assignment",
+                                    child.getCurrent().getRow(), child.getCurrent().getColumn());
+                        }
+                        String varExp = genExpCode(localVars, child.getChild(0).getChild(0));
+                        if (!localVars.containsKey(child.getCurrent().getValue())){
+                            localVars.put(child.getCurrent().getValue(), ++vars);
+                        }
+                        funcTempl += String.format( "%s\n" +
+                                                    "pop ebx\n" +
+                                                    "mov [%d+ebp+4], ebx\n",
+                                varExp, 4*localVars.get(child.getCurrent().getValue()));
+                        break;
+                    }
                 }
+                if (vars >= MAX_LOCAL_VARS)
+                    throw new CompilerException("Too many local variables",
+                            child.getCurrent().getRow(), child.getCurrent().getColumn());
+                if (retFlag)
+                    break;
             }
-            funcTempl += String.format("%s ENDP\n", defName);
+
+            /* make {defName} epilog */
+            funcTempl += String.format( "\npop ebx\n" +
+                                        "sub esp, %d\n" +
+                                        "ret\n" +
+                                        "%s ENDP\n\n", MAX_LOCAL_VARS*4, defName);
             functions[1] += funcTempl;
         }
 
         return functions;
     }
 
-    private String genExpCode(Node_AST current) {
+    private String genExpCode(HashMap<String, Integer> localVars, Node_AST current) throws CompilerException {
         switch (current.getCurrent().getType()){
             case "UNAR_ADD":
             case "UNAR_SUB":
             case "NOT":{
-                return genExpCode(current.getChild(0))+
+                return genExpCode(localVars, current.getChild(0))+
                         operationBlocks.get(current.getCurrent().getType());
             }
+            case "L_SHIFT":
+            case "R_SHIFT":
+            case "EQ":
+            case "NE":
+            case "GT":
+            case "LT":
+            case "GE":
+            case "LE":
             case "SUB":
             case "DIV":
             case "MUL":
             case "ADD":{
-                return genExpCode(current.getChild(0))+
-                        genExpCode(current.getChild(1))+
+                return genExpCode(localVars, current.getChild(0))+
+                        genExpCode(localVars, current.getChild(1))+
                     operationBlocks.get(current.getCurrent().getType());
+            }
+            case "OR":
+            case "AND" :{
+                return genExpCode(localVars, current.getChild(0))+
+                        String.format(operationBlocks.get(current.getCurrent().getType()),
+                                ++clauseNum, genExpCode(localVars, current.getChild(1)));
             }
             case "INT(CHAR)":
             case "INT(BINNUM)":
@@ -163,6 +297,15 @@ public class ASM_Creator {
             case "INT":{
                 return String.format(operationBlocks.get(current.getCurrent().getType()),
                                                         current.getCurrent().getValue());
+            }
+            case "ID": {
+                if (!localVars.containsKey(current.getCurrent().getValue())){
+                    throw new CompilerException("Unknown variable",
+                            current.getCurrent().getRow(), current.getCurrent().getColumn());
+                }
+
+                return String.format(operationBlocks.get(current.getCurrent().getType()),
+                        localVars.get(current.getCurrent().getValue())*4, current.getCurrent().getValue());
             }
             default:
                 return "Unknown operation "+current.getCurrent().getType();

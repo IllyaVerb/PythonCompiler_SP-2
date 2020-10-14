@@ -1,7 +1,10 @@
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
-import javafx.scene.input.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
 
 import java.io.*;
@@ -110,7 +113,7 @@ public class MainController {
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        //System.setErr(ps);
+        System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 

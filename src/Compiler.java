@@ -23,10 +23,16 @@ public class Compiler {
         }
         parser.getMainAST().printAST();
 
-/*
+
         System.out.println("\n========================================\n");
 
-        ASM_Creator asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
+        ASM_Creator asm_creator;
+        try {
+            asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
+        } catch (CompilerException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
         boolean success = asm_creator.createFile(output);
 
         time = System.nanoTime() - time;
@@ -39,7 +45,7 @@ public class Compiler {
         else {
             System.err.println("Compilation was failed");
             return false;
-        }*/
-        return true;
+        }
+        //return true;
     }
 }

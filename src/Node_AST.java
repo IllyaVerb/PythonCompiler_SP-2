@@ -84,6 +84,8 @@ public class Node_AST {
         children.add(child);
     }
 
+    public void appendChildren(ArrayList<Node_AST> children){ this.children.addAll(children); }
+
     public void setFirstChild(Node_AST child){
         insertChild(0, child);
     }

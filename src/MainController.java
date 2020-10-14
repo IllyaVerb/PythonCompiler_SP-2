@@ -1,7 +1,7 @@
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
 import javafx.stage.FileChooser;
 
 import java.io.*;
@@ -14,6 +14,35 @@ public class MainController {
 
     @FXML
     private TextArea textInput, textFileName, textConsole, textASM;
+
+    @FXML
+    private void keyReleased(KeyEvent keyEvent){
+        KeyCombination save = new KeyCodeCombination(KeyCode.S,
+                KeyCombination.CONTROL_DOWN);
+        KeyCombination saveAs = new KeyCodeCombination(KeyCode.S,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+
+        switch (keyEvent.getCode()){
+            case F9: {
+                build();
+                break;
+            }
+            case F10: {
+                run();
+                break;
+            }
+            default:{
+                if (save.match(keyEvent)){
+                    save();
+                    break;
+                }
+                if (saveAs.match(keyEvent)){
+                    saveAs();
+                    break;
+                }
+            }
+        }
+    }
 
     @FXML
     private void openFile(){
@@ -81,7 +110,7 @@ public class MainController {
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        System.setErr(ps);
+        //System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 

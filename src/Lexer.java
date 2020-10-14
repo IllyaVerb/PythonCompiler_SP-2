@@ -107,6 +107,7 @@ public class Lexer {
         symbols.put("&", "BIT_AND");
         symbols.put("|", "BIT_OR");
         symbols.put("^", "BIT_XOR");
+        symbols.put("~", "BIT_NOT");
 
         whitespace.put(" ", "SPACE");
         whitespace.put("\t", "TAB");

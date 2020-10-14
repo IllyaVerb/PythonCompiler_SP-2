@@ -13,7 +13,7 @@ public class Compiler {
 
         lexer.printTokens();
         System.out.println("\n========================================\n");
-/*
+
         Parser parser;
         try {
             parser = new Parser(lexer.getTokens());
@@ -23,7 +23,7 @@ public class Compiler {
         }
         parser.getMainAST().printAST();
 
-
+/*
         System.out.println("\n========================================\n");
 
         ASM_Creator asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());

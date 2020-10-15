@@ -1,5 +1,5 @@
 public class AST {
-    private Node_AST root;
+    private final Node_AST root;
 
     public AST(Node_AST root){
         this.root = root;
@@ -17,9 +17,7 @@ public class AST {
         StringBuilder prev = new StringBuilder();
         if (depth > 1){
             prev = new StringBuilder();
-            for (int i = 0; i < depth-1; i++) {
-                prev.append("|\t");
-            }
+            prev.append("|\t".repeat(depth - 1));
             prev.append("|-----");
         }
         else {

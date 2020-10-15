@@ -14,7 +14,11 @@ public class ASM_Creator {
     private String masmTemplate = ".386\n" +
             ".model flat,stdcall\n" +
             "option casemap:none\n\n" +
-            "include     ..\\include\\masm32rt.inc\n\n" +
+            "include     ..\\include\\windows.inc\n" +
+            "include     ..\\include\\kernel32.inc\n" +
+            "include     ..\\include\\masm32.inc\n" +
+            "includelib  ..\\lib\\kernel32.lib\n" +
+            "includelib  ..\\lib\\masm32.lib\n\n" +
             "_NumbToStr   PROTO :DWORD,:DWORD\n" +
             "_main        PROTO\n\n" +
             "%s\n" + // insert prototype of functions

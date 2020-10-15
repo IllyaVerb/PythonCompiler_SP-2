@@ -10,7 +10,7 @@ import javafx.stage.FileChooser;
 import java.io.*;
 
 public class MainController {
-    private String myName = "2-4-Java-IO-82-Verbovskyi";
+    private final String myName = "3-4-Java-IO-82-Verbovskyi";
 
     @FXML
     private Button btnOpenFile, btnSaveAs;
@@ -55,8 +55,8 @@ public class MainController {
         chooser.setInitialDirectory(file);
         chooser.setTitle("Open Input File");
         chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Text Files", "*.txt"),
-                new FileChooser.ExtensionFilter("Python Files", "*.py"));
+                new FileChooser.ExtensionFilter("Python Files", "*.py"),
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"));
 
         File selectedFile = chooser.showOpenDialog(btnOpenFile.getScene().getWindow());
         if (selectedFile != null) {
@@ -94,8 +94,8 @@ public class MainController {
         }
         chooser.setTitle("Save File");
         chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Text Files", "*.txt"),
-                new FileChooser.ExtensionFilter("Python Files", "*.py"));
+                new FileChooser.ExtensionFilter("Python Files", "*.py"),
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"));
 
         File selectedFile = chooser.showSaveDialog(btnSaveAs.getScene().getWindow());
         if (selectedFile != null) {

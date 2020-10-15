@@ -1,8 +1,8 @@
 public class Token {
-    private String value;
-    private String type;
-    private int row;
-    private int column;
+    private final String value;
+    private final String type;
+    private final int row;
+    private final int column;
 
     public Token(String value, String type, int row, int column){
         this.value = value;

@@ -1,6 +1,6 @@
 # Project exclude paths
 /out/
-/masm32/
+/3-4-Java-IO-82-Verbovskyi/
 /3-4-Java-IO-82-Verbovskyi.asm
 /3-4-Java-IO-82-Verbovskyi.py
-/2-4-Java-IO-82-Verbovskyi-run.bat
+/3-4-Java-IO-82-Verbovskyi-tmp.bat

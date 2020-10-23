@@ -15,6 +15,15 @@ public class Token {
         return value;
     }
 
+    public String getRawValue() {
+        switch (type){
+            case "NEW_LINE": return "\\n";
+            case "TAB": return "\\t";
+            case "SPACE": return "\\s";
+            default: return value;
+        }
+    }
+
     public String getType() {
         return type;
     }

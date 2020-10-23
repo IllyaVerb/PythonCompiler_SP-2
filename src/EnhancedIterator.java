@@ -1,6 +1,5 @@
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 public class EnhancedIterator<E> implements Iterator<E> {
     private ArrayList<E> list;
@@ -36,6 +35,9 @@ public class EnhancedIterator<E> implements Iterator<E> {
     }
     public E current(){
         return list.get(indexSelected);
+    }
+    public E peek(){
+        return list.get(indexSelected+1);
     }
     public E get(int i){
         return list.get(i);

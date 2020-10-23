@@ -102,6 +102,12 @@ public class ASM_Creator {
                                     "idiv ebx\n" +
                                     "push eax");
 
+        operationBlocks.put("PERCENT",  "\n\npop ebx\t; div\n" +
+                                        "pop eax\n" +
+                                        "cdq\n" +
+                                        "idiv ebx\n" +
+                                        "push edx");
+
         operationBlocks.put("L_SHIFT",  "\n\npop ebx\t; left shift\n" +
                                         "pop eax\n" +
                                         "sal eax, ebx\n" +
@@ -232,7 +238,7 @@ public class ASM_Creator {
                     case "ID":{
                         if (child.getChildren().size() == 0){
                             throw new CompilerException("Variable referenced before assignment",
-                                    child.getCurrent().getRow(), child.getCurrent().getColumn());
+                                    child.getCurrent());
                         }
                         String varExp = genExpCode(localVars, child.getChild(0).getChild(0));
                         if (!localVars.containsKey(child.getCurrent().getValue())){
@@ -247,7 +253,7 @@ public class ASM_Creator {
                 }
                 if (vars >= MAX_LOCAL_VARS)
                     throw new CompilerException("Too many local variables",
-                            child.getCurrent().getRow(), child.getCurrent().getColumn());
+                            child.getCurrent());
                 if (retFlag)
                     break;
             }
@@ -281,6 +287,7 @@ public class ASM_Creator {
             case "LE":
             case "SUB":
             case "DIV":
+            case "PERCENT":
             case "MUL":
             case "ADD":{
                 return genExpCode(localVars, current.getChild(0))+
@@ -305,7 +312,7 @@ public class ASM_Creator {
             case "ID": {
                 if (!localVars.containsKey(current.getCurrent().getValue())){
                     throw new CompilerException("Unknown variable",
-                            current.getCurrent().getRow(), current.getCurrent().getColumn());
+                            current.getCurrent());
                 }
 
                 return String.format(operationBlocks.get(current.getCurrent().getType()),
@@ -317,17 +324,15 @@ public class ASM_Creator {
     }
 
     private String mainCode(){
-        String code = "";
+        StringBuilder code = new StringBuilder();
 
         for (Node_AST node: ast.getRoot().getChildren()) {
-            switch (node.getCurrent().getType()){
-                case "DEF_CALL": {
-                    code += String.format("\tcall %s\n", node.getCurrent().getValue());
-                }
+            if ("DEF_CALL".equals(node.getCurrent().getType())) {
+                code.append(String.format("\tcall %s\n", node.getCurrent().getValue()));
             }
         }
 
-        return code;
+        return code.toString();
     }
 
     public String getAsmCode() {

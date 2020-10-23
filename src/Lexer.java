@@ -17,7 +17,7 @@ public class Lexer {
         keywords = new HashMap<>();
         symbols = new HashMap<>();
         whitespace = new HashMap<>();
-        parseText = "";
+        StringBuilder parseBuilder = new StringBuilder();
 
         fillMaps();
         tokens.add(new Token("null", "START", -1, -1));
@@ -26,14 +26,15 @@ public class Lexer {
             try (FileReader reader = new FileReader(nameFile)) {
                 int symb;
                 while ((symb = reader.read()) != -1) {
-                    parseText += (char) symb;
+                    parseBuilder.append((char) symb);
                 }
+                this.parseText = parseBuilder.toString();
             } catch (IOException e) {
                 System.out.println(e.getMessage());
             }
         }
         else{
-            parseText = nameFile;
+            this.parseText = nameFile;
         }
 
         makeTokens();
@@ -228,7 +229,7 @@ public class Lexer {
                                 else {
                                     tokens.add(new Token(symbLine[i], "UNDEF", row, i));
                                     try {
-                                        throw new CompilerException("Undefined symbol", row, i);
+                                        throw new CompilerException("Undefined symbol", tokens.get(tokens.size()-1));
                                     } catch (CompilerException e) {
                                         System.err.println(e.getMessage());
                                         System.err.println((int) symbLine[i].toCharArray()[0]);
@@ -262,14 +263,7 @@ public class Lexer {
 
     public void printTokens() {
         for (Token token: tokens) {
-            String val;
-            switch (token.getType()){
-                case "NEW_LINE": val = "\\n"; break;
-                case "TAB": val = "\\t"; break;
-                case "SPACE": val = "\\s"; break;
-                default: val = token.getValue();
-            }
-            System.out.printf("[ %10s <==> %-10s ]%n", val, token.getType());
+            System.out.printf("[ %10s <==> %-10s ]%n", token.getRawValue(), token.getType());
         }
     }
 }

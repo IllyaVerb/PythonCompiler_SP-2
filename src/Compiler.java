@@ -25,7 +25,7 @@ public class Compiler {
 
 
         System.out.println("\n========================================\n");
-
+/*
         ASM_Creator asm_creator;
         try {
             asm_creator = new ASM_Creator(parser.getMainAST(), parser.getDefAST());
@@ -45,7 +45,7 @@ public class Compiler {
         else {
             System.err.println("Compilation was failed");
             return false;
-        }
-        //return true;
+        }*/
+        return true;
     }
 }

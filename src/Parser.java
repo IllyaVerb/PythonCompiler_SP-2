@@ -63,7 +63,7 @@ public class Parser {
     private Token isLikeTemplate(EnhancedIterator<Token> enhancedIterator, String type, int errId) throws CompilerException {
         Token token = enhancedIterator.next();
         if (!token.getType().equals(type)){
-            fail(1, token);
+            fail(errId, token);
         }
         return token;
     }
@@ -76,7 +76,7 @@ public class Parser {
         }
         tokenEnhancedIterator.previous();
         while (tokenEnhancedIterator.hasNext()){
-            Node_AST call = parseDefCall("CALL", tokenEnhancedIterator);
+            Node_AST call = parseDefCall(tokenEnhancedIterator);
             if (!defAST.containsKey(call.getCurrent().getValue()))
                 fail(4, call.getCurrent());
             call.appendChildren(defAST.get(call.getCurrent().getValue()).getRoot().getChildren());
@@ -88,45 +88,11 @@ public class Parser {
         Token defName;
 
         isLikeTemplate(tokenEnhancedIterator, "DEF", 1);
-        defName = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);;
+        defName = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
         isLikeTemplate(tokenEnhancedIterator, "LBR", 1);
         isLikeTemplate(tokenEnhancedIterator, "RBR", 1);
         isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
         isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
-
-        /*
-        token = tokenEnhancedIterator.next();
-        if (!token.getType().equals("TAB") && !token.getType().equals("SPACE")){
-            fail(1, token);
-        }
-
-        tokenEnhancedIterator.previous();
-        statements = new ArrayList<>();
-        while(token.getType().equals("TAB") || token.getType().equals("SPACE")){
-            int tmpSpaceTabCount = 0;
-            tokenEnhancedIterator.next();
-
-            while (token.getType().matches("(TAB)|(SPACE)")) {
-                if (token.getType().equals("TAB"))
-                    tmpSpaceTabCount += 8;
-                else
-                    tmpSpaceTabCount++;
-                token = tokenEnhancedIterator.next();
-            }
-
-            if (currentDefSpaceTabCount == -1)
-                currentDefSpaceTabCount = tmpSpaceTabCount;
-            if (tmpSpaceTabCount != currentDefSpaceTabCount){
-                fail(0, token);
-            }
-            tokenEnhancedIterator.previous();
-
-            statements.add(parseStat(tokenEnhancedIterator));
-
-            token = tokenEnhancedIterator.next();
-            tokenEnhancedIterator.previous();
-        }
-         */
 
         Node_AST def = new Node_AST(new Token(defName.getValue(), "DEF_WORD",
                 defName.getRow(), defName.getColumn()));
@@ -281,27 +247,6 @@ public class Parser {
                 return exp;
             }
         }
-        /*
-        if (token.getType().equals("RETURN")){
-            tokenEnhancedIterator.next();
-            Node_AST returnNode = new Node_AST(new Token("return", "RETURN",
-                    token.getRow(), token.getColumn())),
-                    retExp = parseExp(tokenEnhancedIterator);
-
-            returnNode.appendChild(retExp);
-            retExp.setParent(returnNode);
-
-            isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
-
-            return returnNode;
-        }
-        else {
-            Node_AST exp = parseExp(tokenEnhancedIterator);
-
-            isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
-
-            return exp;
-        }*/
     }
 
     private Node_AST parseExp(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
@@ -437,7 +382,6 @@ public class Parser {
                     if (token.getType().matches("(INT)|(FLOAT)|(BINNUM)|(OCTNUM)|(HEXNUM)|(STRING)")) {
                         return parseExpression(token);
                     } else {
-                        System.err.println("parseFactor: "+token.getType());
                         fail(3, token);
                     }
                 }
@@ -490,10 +434,10 @@ public class Parser {
         return null;
     }
 
-    private Node_AST parseDefCall(String key, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
+    private Node_AST parseDefCall(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Token token;
         Node_AST defCall = null;
-        for (String part : templates.get(key)) {
+        for (String part : templates.get("CALL")) {
             token = tokenEnhancedIterator.next();
             if (part.equals("WORD")){
                 defCall = new Node_AST(new Token(token.getValue(), "DEF_CALL",

@@ -10,7 +10,7 @@ import javafx.stage.FileChooser;
 import java.io.*;
 
 public class MainController {
-    private final String myName = "3-4-Java-IO-82-Verbovskyi";
+    private final String myName = "4-4-Java-IO-82-Verbovskyi";
 
     @FXML
     private Button btnOpenFile, btnSaveAs;
@@ -113,7 +113,7 @@ public class MainController {
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        //System.setErr(ps);
+        System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 

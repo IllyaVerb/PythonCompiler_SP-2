@@ -26,7 +26,7 @@ public class Main extends Application {
         stage.setTitle("PythonCompiler_IllyaVerb");
         TextArea textFilename = (TextArea) scene.lookup("#text_input_file"),
                     textInput = (TextArea) scene.lookup("#text_input_print");
-        String myName = "3-4-Java-IO-82-Verbovskyi";
+        String myName = "4-4-Java-IO-82-Verbovskyi";
         textFilename.setText(String.format("%s\\%s.py", System.getProperty("user.dir"), myName));
 
         StringBuilder code = new StringBuilder();

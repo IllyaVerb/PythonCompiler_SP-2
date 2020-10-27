@@ -9,7 +9,12 @@ import javafx.stage.FileChooser;
 
 import java.io.*;
 
+/**
+ * controller for Style.fxml file
+ */
 public class MainController {
+
+    /* name for all outer files */
     private final String myName = "4-4-Java-IO-82-Verbovskyi";
 
     @FXML
@@ -18,6 +23,14 @@ public class MainController {
     @FXML
     private TextArea textInput, textFileName, textConsole, textASM;
 
+    /**
+     * event for key bindings
+     * F9               - Build button
+     * F10              - Run button
+     * Ctrl+S           - Save button
+     * Ctrl+Shift+S     - Save as... button
+     * @param keyEvent  - event with keys
+     */
     @FXML
     private void keyReleased(KeyEvent keyEvent){
         KeyCombination save = new KeyCodeCombination(KeyCode.S,
@@ -47,6 +60,9 @@ public class MainController {
         }
     }
 
+    /**
+     * start open file dialog and read chosen file
+     */
     @FXML
     private void openFile(){
         FileChooser chooser = new FileChooser();
@@ -75,11 +91,17 @@ public class MainController {
         }
     }
 
+    /**
+     * save source code to current file
+     */
     @FXML
     private void save(){
         writeToFile(textFileName.getText(), textInput.getText());
     }
 
+    /**
+     * save source code to file chosen by save file dialog
+     */
     @FXML
     private void saveAs(){
         FileChooser chooser = new FileChooser();
@@ -103,6 +125,12 @@ public class MainController {
         }
     }
 
+    /**
+     * launch compiler
+     * redirect out and err stream to interface console field
+     * print created .asm file to interface ASM result
+     * @return - result of building project (true/false)
+     */
     @FXML
     private boolean build(){
         save();
@@ -125,6 +153,9 @@ public class MainController {
         return compilationResult;
     }
 
+    /**
+     * compile and run built .asm file in console using masm32
+     */
     @FXML
     private void run(){
         if (!build())
@@ -149,6 +180,11 @@ public class MainController {
         }
     }
 
+    /**
+     * write text to file
+     * @param fileName - name of file for writing
+     * @param text - text, that will be written
+     */
     private void writeToFile(String fileName, String text){
         try(FileWriter writer = new FileWriter(fileName, false))
         {
@@ -160,6 +196,11 @@ public class MainController {
         }
     }
 
+    /**
+     * read content of file
+     * @param nameFile - file to be read
+     * @return - xontent of file in type String
+     */
     private String readFromFile(String nameFile) {
         StringBuilder result = new StringBuilder();
         try (FileReader reader = new FileReader(nameFile)) {

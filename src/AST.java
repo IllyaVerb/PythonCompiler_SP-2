@@ -1,18 +1,38 @@
+/**
+ * Class describe Asynchronous Syntax Tree
+ */
 public class AST {
+    /* root node of AST*/
     private final Node_AST root;
 
+    /**
+     * create AST
+     * @param root - root node
+     */
     public AST(Node_AST root){
         this.root = root;
     }
 
+    /**
+     * create AST with new Node_AST from token
+     * @param token - root token
+     */
     public AST(Token token){
         this.root = new Node_AST(token, null);
     }
 
+    /**
+     * start recursive printing AST
+     */
     public void printAST(){
         recursivePrintChildren(root, 0);
     }
 
+    /**
+     * second print part
+     * @param child - current child which data will be printed
+     * @param depth - current depth for pretty print AST
+     */
     private void recursivePrintChildren(Node_AST child, int depth){
         StringBuilder prev = new StringBuilder();
         if (depth > 1){
@@ -32,6 +52,10 @@ public class AST {
             }
     }
 
+    /**
+     * getter for root node
+     * @return - root node
+     */
     public Node_AST getRoot() {
         return root;
     }

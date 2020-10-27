@@ -1,6 +1,10 @@
 import java.util.ArrayList;
 import java.util.Iterator;
 
+/**
+ * Class for custom iterator
+ * @param <E> - iterator type
+ */
 public class EnhancedIterator<E> implements Iterator<E> {
     private ArrayList<E> list;
     private int indexSelected=-1;
@@ -29,6 +33,11 @@ public class EnhancedIterator<E> implements Iterator<E> {
             indexSelected--;
         }
     }
+
+    /**
+     * return previous element and decrement index
+     * @return - previous item
+     */
     public E previous(){
         indexSelected--;
         return current();
@@ -36,6 +45,11 @@ public class EnhancedIterator<E> implements Iterator<E> {
     public E current(){
         return list.get(indexSelected);
     }
+
+    /**
+     * new method for getting next element without changing index
+     * @return - next item
+     */
     public E peek(){
         return list.get(indexSelected+1);
     }

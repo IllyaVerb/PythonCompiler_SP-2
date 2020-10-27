@@ -2,14 +2,23 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 
+/**
+ * Class describes creator asm code
+ */
 public class ASM_Creator {
+    /* max storage for local variables in asm code */
     private static final int MAX_LOCAL_VARS = 25;
 
+    /* main AST */
     private final AST ast;
+    /* map with function AST, [] */
     private final HashMap<String, AST> defAST;
+    /* variable map, [var name - place in stack] */
     private final HashMap<String, String> operationBlocks;
+    /* result, asm code */
     private final String asmCode;
 
+    /* template for full asm file */
     private String masmTemplate = ".386\n" +
             ".model flat,stdcall\n" +
             "option casemap:none\n\n" +
@@ -53,17 +62,30 @@ public class ASM_Creator {
             "_NumbToStr ENDP\n\n" +
             "END _start\n";
 
+    /**
+     * creator starter
+     * @param ast - main AST
+     * @param defAST - functions AST map
+     * @throws CompilerException - threw this exception
+     */
     public ASM_Creator(AST ast, HashMap<String, AST> defAST) throws CompilerException {
+        /* initialise global variables */
         this.ast = ast;
         this.defAST = defAST;
         this.operationBlocks = new HashMap<>();
+
+        /* fill map with asm fragments on every operation */
         loadOperationBlocks();
 
+        /* start creating code */
         String[] functions = createFunctions();
         this.asmCode = String.format(masmTemplate, functions[0], mainCode(), functions[1]);
 
     }
 
+    /**
+     * fill map with code fragments
+     */
     private void loadOperationBlocks() {
         /* Operations for 1 args */
         operationBlocks.put("NOT",  "\n\npop ebx\t; not\n" +
@@ -186,13 +208,13 @@ public class ASM_Creator {
                                     "push eax");
 
         /* if operators */
-        operationBlocks.put("TERNAR",   "\n\npop eax\t; ternar if\n" +  // before is condition (0)
+        operationBlocks.put("TERNAR",   "\n\npop eax\t; ternar if\n" +      // before is condition (0)
                                         "cmp eax, 0\n" +
                                         "je _ternar_false_%1$d\n" +
                                         "\n%2$s\n" +                        // if true (1)
                                         "jmp _ternar_end_%1$d\n" +
                                         "_ternar_false_%1$d:\n" +
-                                        "\n%3$s\n" +                      // if false (2)
+                                        "\n%3$s\n" +                        // if false (2)
                                         "_ternar_end_%1$d:");
 
         /* get vars/values */
@@ -207,6 +229,11 @@ public class ASM_Creator {
                                     "push ebx");
     }
 
+    /**
+     * write asmCode to file
+     * @param fileName - file name
+     * @return - writing result
+     */
     public boolean createFile(String fileName){
         try(FileWriter writer = new FileWriter(fileName, false))
         {
@@ -220,10 +247,16 @@ public class ASM_Creator {
         }
     }
 
+    /**
+     * create prototypes and procedure body code in array
+     * @return - array with code
+     * @throws CompilerException - if AST is incorrect, it throw this exception
+     */
     private String[] createFunctions() throws CompilerException {
         /* 0 - PROTO, 1 - functions */
         String[] functions = {"" ,""};
 
+        /* make asm code for all functions */
         for (String defName: defAST.keySet()) {
             /* make PROTO for {defName} */
             functions[0] += String.format("%s PROTO\n", defName);
@@ -233,11 +266,16 @@ public class ASM_Creator {
                     String.format(  "%s PROC\n" +
                                     "mov ebp, esp\n" +
                                     "add esp, %d\n", defName, MAX_LOCAL_VARS * 4));
-            boolean retFlag = false, ifFlag = false;
-            HashMap<String, Integer> localVars = new HashMap<>();
-            int ifHashCode = 0;
 
+            boolean retFlag = false, ifFlag = false;
+            /* hash code for make logic and conditional construction unique */
+            int ifHashCode = 0;
+            HashMap<String, Integer> localVars = new HashMap<>();
+
+            /* go by every statement in function body */
             for (Node_AST child: defAST.get(defName).getRoot().getChildren()) {
+
+                /* append ending of IF construction using ifFlag */
                 if (!child.getCurrent().getType().equals("IF") &&
                         !child.getCurrent().getType().equals("ELIF") &&
                         !child.getCurrent().getType().equals("ELSE") && ifFlag){
@@ -245,11 +283,15 @@ public class ASM_Creator {
                     ifFlag = false;
                 }
                 switch (child.getCurrent().getType()){
+
+                    /* RETURN statement, make retFlag true and break from function */
                     case "RETURN":{
                         funcTempl.append(genExpCode(localVars, child.getChild(0)));
                         retFlag = true;
                         break;
                     }
+
+                    /* ID statement */
                     case "ID":{
                         if (child.getChildren().size() == 0){
                             throw new CompilerException("Variable referenced before assignment",
@@ -266,49 +308,64 @@ public class ASM_Creator {
                         funcTempl.append(genExpCode(localVars, child));
                         break;
                     }
+
+                    /* IF statement */
                     case "IF" :{
+                        /* remember hashcode for jumping on special sign */
                         ifHashCode = child.hashCode();
                         ifFlag = true;
 
-                        // init condition
+                        /* initialise IF condition */
                         funcTempl.append(genExpCode(localVars, child.getChild(0)))
-                                    .append(   "\n\npop eax\t; if condition\n" +  // before is condition (0)
+                                    .append(   "\n\npop eax\t; if condition\n" + // before is condition IF <EXP> ":" (0)
                                                 "cmp eax, 0\n")
+                                    /* jump if <EXP> is false */
                                     .append(String.format("je _if_false_%d", ifHashCode));
 
                         if (child.getChild(1).getChildren().size() == 0){
                             throw new CompilerException("This token need to have block body", child.getCurrent());
                         }
+
+                        /* create code for IF true part */
                         for (Node_AST node: child.getChild(1).getChildren()) {
                             funcTempl.append(genExpCode(localVars, node));
                         }
 
+                        /* if true, jump to end, next code will false */
                         funcTempl.append(String.format(   "\n\njmp _if_end_%1$d\n"+
                                                         "_if_false_%1$d:", ifHashCode));
                         break;
                     }
+
+                    /* ELIF statement */
                     case "ELIF":{
                         if (!ifFlag){
                             throw new CompilerException("IF token was missed", child.getCurrent());
                         }
 
-                        // init condition
+                        /* initialise ELIF condition */
                         funcTempl.append(genExpCode(localVars, child.getChild(0)))
-                                .append(   "\n\npop eax\t; elif condition\n" +  // before is condition (0)
+                                .append(   "\n\npop eax\t; elif condition\n" +  // before is condition ELIF <EXP> ":" (0)
                                         "cmp eax, 0\n")
+                                /* jump elif <EXP> is false */
                                 .append(String.format("je _elif_false_%d", child.hashCode()));
 
                         if (child.getChild(1).getChildren().size() == 0){
                             throw new CompilerException("This token need to have block body", child.getCurrent());
                         }
+
+                        /* create code for ELIF true part */
                         for (Node_AST node: child.getChild(1).getChildren()) {
                             funcTempl.append(genExpCode(localVars, node));
                         }
 
+                        /* if true, jump to if end, next code will false */
                         funcTempl.append(String.format( "\n\njmp _if_end_%d\n"+
                                                         "_elif_false_%d:", ifHashCode, child.hashCode()));
                         break;
                     }
+
+                    /* ELSE statement */
                     case "ELSE":{
                         if (!ifFlag){
                             throw new CompilerException("IF token was missed", child.getCurrent());
@@ -316,18 +373,27 @@ public class ASM_Creator {
                         if (child.getChildren().size() == 0){
                             throw new CompilerException("This token need to have block body", child.getCurrent());
                         }
+                        /* ELSE has not true body */
                         funcTempl.append("\n\n\t\t; else");
+
+                        /* create code for ELSE part */
                         for (Node_AST node: child.getChildren()) {
                             funcTempl.append(genExpCode(localVars, node));
                         }
                         break;
                     }
+
+                    /* incorrect operation, throw exception */
                     default:
                         throw new CompilerException("Incorrect type of operation", child.getCurrent());
                 }
+
+                /* exception if variables counter is more than max part */
                 if (localVars.size() >= MAX_LOCAL_VARS)
                     throw new CompilerException("Too many local variables",
                             child.getCurrent());
+
+                /* break if return found */
                 if (retFlag)
                     break;
             }
@@ -343,14 +409,23 @@ public class ASM_Creator {
         return functions;
     }
 
+    /**
+     * big generator part, connect operation template with nodes
+     * @param localVars - local function vars
+     * @param current - current node to be used
+     * @return - string for appending to code
+     * @throws CompilerException - unknown operation throw this exception
+     */
     private String genExpCode(HashMap<String, Integer> localVars, Node_AST current) throws CompilerException {
         switch (current.getCurrent().getType()){
+            /* operations with one operand */
             case "UNAR_ADD":
             case "UNAR_SUB":
             case "NOT":{
                 return genExpCode(localVars, current.getChild(0))+
                         operationBlocks.get(current.getCurrent().getType());
             }
+            /* operations with two operands */
             case "L_SHIFT":
             case "R_SHIFT":
             case "EQ":
@@ -368,6 +443,7 @@ public class ASM_Creator {
                         genExpCode(localVars, current.getChild(1))+
                     operationBlocks.get(current.getCurrent().getType());
             }
+            /* operations with logic operands */
             case "OR":
             case "AND" :{
                 return genExpCode(localVars, current.getChild(0))+
@@ -375,6 +451,7 @@ public class ASM_Creator {
                                         current.hashCode(),
                                         genExpCode(localVars, current.getChild(1)));
             }
+            /* ternary operand */
             case "TERNAR" :{
                 return genExpCode(localVars, current.getChild(0))+
                         String.format(operationBlocks.get(current.getCurrent().getType()),
@@ -382,6 +459,7 @@ public class ASM_Creator {
                                         genExpCode(localVars, current.getChild(1)),
                                         genExpCode(localVars, current.getChild(2)));
             }
+            /* value getter */
             case "INT(CHAR)":
             case "INT(BINNUM)":
             case "INT(HEXNUM)":
@@ -391,6 +469,7 @@ public class ASM_Creator {
                 return String.format(operationBlocks.get(current.getCurrent().getType()),
                                                         current.getCurrent().getValue());
             }
+            /* work with variables */
             case "ID": {
                 // create variable
                 if (current.getChildren().size() != 0){
@@ -412,12 +491,17 @@ public class ASM_Creator {
                 return String.format(operationBlocks.get(current.getCurrent().getType()),
                         localVars.get(current.getCurrent().getValue())*4, current.getCurrent().getValue());
             }
+            /* error if operations is unknown */
             default:
                 System.err.println(current.getParent().getParent().getCurrent().getType());
                 throw new CompilerException("Unknown operation ", current.getCurrent());
         }
     }
 
+    /**
+     * code for _main procedure, generate other procedure calling
+     * @return - _main code
+     */
     private String mainCode(){
         StringBuilder code = new StringBuilder();
 
@@ -430,6 +514,10 @@ public class ASM_Creator {
         return code.toString();
     }
 
+    /**
+     * getter for asm code
+     * @return - asm code
+     */
     public String getAsmCode() {
         return asmCode;
     }

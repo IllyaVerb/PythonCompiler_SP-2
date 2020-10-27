@@ -3,24 +3,34 @@ import java.util.Collections;
 import java.util.HashMap;
 
 public class Parser {
-    private final HashMap<String, AST> defAST;
     private final AST mainAST;
+    /* AST for all functions */
+    private final HashMap<String, AST> defAST;
+    /* map for all templates */
     private final HashMap<String, String[]> templates;
+    /* map for operation tokens with different priority */
     private final HashMap<Integer, String> priority;
 
     public Parser(ArrayList<Token> tokens) throws CompilerException {
         EnhancedIterator<Token> tokenEnhancedIterator = new EnhancedIterator<>(tokens);
 
+        /* initialise all global variables */
         this.defAST = new HashMap<>();
         this.mainAST = new AST(tokenEnhancedIterator.next());
         this.templates = new HashMap<>();
         this.priority = new HashMap<>();
 
+        /* use methods that fill maps */
         fillTemplates();
         initPriority();
+
+        /* start parsing */
         parseProg(tokenEnhancedIterator);
     }
 
+    /**
+     * fill priority map by token types
+     */
     private void initPriority() {
         //priority.put(4, "POW");
         //priority.put(5, "(ADD)|(SUB)|(BIT_NOT)");
@@ -36,6 +46,10 @@ public class Parser {
         priority.put(15, "OR");
     }
 
+    /**
+     * fill templates for definition high-level tokens
+     * (deprecated)
+     */
     private void fillTemplates() {
         templates.put("PROG", new String[]{"FUNC", "CALL"});
 
@@ -60,7 +74,16 @@ public class Parser {
         templates.put("S", new String[]{"TAB", "SPACE"});
     }
 
-    private Token isLikeTemplate(EnhancedIterator<Token> enhancedIterator, String type, int errId) throws CompilerException {
+    /**
+     * test is next token has correct type
+     * @param enhancedIterator - iterator
+     * @param type - type to be needed
+     * @param errId - error id when exception
+     * @return - this next token, if it need to be used
+     * @throws CompilerException - fail will produce this exception
+     */
+    private Token isLikeTemplate(EnhancedIterator<Token> enhancedIterator, String type, int errId)
+            throws CompilerException {
         Token token = enhancedIterator.next();
         if (!token.getType().equals(type)){
             fail(errId, token);
@@ -68,35 +91,54 @@ public class Parser {
         return token;
     }
 
+    /**
+     * parse Program type
+     * @param tokenEnhancedIterator - iterator
+     * @throws CompilerException - fail will produce this exception
+     */
     private void parseProg(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        while (tokenEnhancedIterator.next().getType().equals("DEF")){
-            tokenEnhancedIterator.previous();
+        /* parse every function */
+        while (tokenEnhancedIterator.peek().getType().equals("DEF")){
+            /* create function AST */
             AST tmp = new AST(parseFunc(tokenEnhancedIterator));
+            /* add AST to map */
             defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
         }
-        tokenEnhancedIterator.previous();
+        /* parse every function calling */
         while (tokenEnhancedIterator.hasNext()){
+            /* create node for function calling */
             Node_AST call = parseDefCall(tokenEnhancedIterator);
+
+            /* fail if function was not previously defined */
             if (!defAST.containsKey(call.getCurrent().getValue()))
                 fail(4, call.getCurrent());
+
             call.appendChildren(defAST.get(call.getCurrent().getValue()).getRoot().getChildren());
             mainAST.getRoot().appendChild(call);
         }
     }
 
+    /**
+     * parse Function type
+     * @param tokenEnhancedIterator - iterator
+     * @return - function node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseFunc(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        Token defName;
+        Token defToken;
 
+        /* test if tokens is correctly placed for function */
         isLikeTemplate(tokenEnhancedIterator, "DEF", 1);
-        defName = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
+        defToken = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
         isLikeTemplate(tokenEnhancedIterator, "LBR", 1);
         isLikeTemplate(tokenEnhancedIterator, "RBR", 1);
         isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
         isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
 
-        Node_AST def = new Node_AST(new Token(defName.getValue(), "DEF_WORD",
-                defName.getRow(), defName.getColumn()));
+        Node_AST def = new Node_AST(new Token(defToken.getValue(), "DEF_WORD",
+                defToken.getRow(), defToken.getColumn()));
 
+        /* parse function block */
         ArrayList<Node_AST> statements = parseBlock(0, tokenEnhancedIterator);
         def.appendChildren(statements);
         for (Node_AST child: statements) {
@@ -106,17 +148,24 @@ public class Parser {
         return def;
     }
 
+    /**
+     * parse Block
+     * @param prevSpaceTabCount - count of tabs and spaces common for previous structure
+     * @param tokenEnhancedIterator - iterator
+     * @return - list of statements
+     * @throws CompilerException - fail will produce this exception
+     */
     private ArrayList<Node_AST> parseBlock(int prevSpaceTabCount, EnhancedIterator<Token> tokenEnhancedIterator)
             throws CompilerException {
         ArrayList<Node_AST> statements = new ArrayList<>();
         int currentSpaceTabCount = -1;
 
-        Token token = tokenEnhancedIterator.next();
-        tokenEnhancedIterator.previous();
+        Token token = tokenEnhancedIterator.peek();
         do {
             int tmpSpaceTabCount = 0, spaceTokenCount = 0;
             tokenEnhancedIterator.next();
 
+            /* count all tabs and spaces */
             while (token.getType().matches("(TAB)|(SPACE)")) {
                 spaceTokenCount++;
                 if (token.getType().equals("TAB"))
@@ -126,9 +175,11 @@ public class Parser {
                 token = tokenEnhancedIterator.next();
             }
 
+            /* initialise space count for first statement */
             if (currentSpaceTabCount == -1)
                 currentSpaceTabCount = tmpSpaceTabCount-prevSpaceTabCount;
 
+            /* go back before spaces */
             if (tmpSpaceTabCount <= prevSpaceTabCount){
                 for (int i = 0; i < spaceTokenCount; i++) {
                     tokenEnhancedIterator.previous();
@@ -136,6 +187,7 @@ public class Parser {
                 break;
             }
 
+            /* error if count of spaces is incorrect */
             if (tmpSpaceTabCount - prevSpaceTabCount != currentSpaceTabCount){
                 System.err.printf("Expected %d spaces, but found %d!\n",
                         currentSpaceTabCount+prevSpaceTabCount, tmpSpaceTabCount);
@@ -145,8 +197,7 @@ public class Parser {
 
             statements.add(parseStat(currentSpaceTabCount, tokenEnhancedIterator));
 
-            token = tokenEnhancedIterator.next();
-            tokenEnhancedIterator.previous();
+            token = tokenEnhancedIterator.peek();
         }while(true);
 
         tokenEnhancedIterator.previous();
@@ -154,16 +205,26 @@ public class Parser {
         return statements;
     }
 
+    /**
+     * parse Statement type
+     * @param currentSpaceCount - spaces count in current statement
+     * @param tokenEnhancedIterator - iterator
+     * @return - statement node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseStat(int currentSpaceCount, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Token token;
 
         token = tokenEnhancedIterator.peek();
         switch (token.getType()){
+            /* return statement: 'RETURN <EXP> NEW_LINE' */
             case "RETURN":{
                 tokenEnhancedIterator.next();
                 Node_AST returnNode = new Node_AST(token),
+                        /* parse exp in return statement */
                         retExp = parseExp(tokenEnhancedIterator);
 
+                /* set family relations */
                 returnNode.appendChild(retExp);
                 retExp.setParent(returnNode);
 
@@ -171,10 +232,12 @@ public class Parser {
 
                 return returnNode;
             }
+            /* if statement: 'IF <EXP> ":" NEW_LINE' { <STAT> } */
             case "IF":{
                 tokenEnhancedIterator.next();
                 Node_AST ifNode = new Node_AST(token);
 
+                /* parse exp in if statement */
                 Node_AST    ifExp = parseExp(tokenEnhancedIterator),
                             ifTrue = new Node_AST(new Token("iftrue", "IF_TRUE",
                         tokenEnhancedIterator.current().getRow(), tokenEnhancedIterator.current().getColumn()));
@@ -182,8 +245,10 @@ public class Parser {
                 isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
                 isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
 
+                /* parse block after if */
                 ArrayList<Node_AST> ifBlock = parseBlock(currentSpaceCount, tokenEnhancedIterator);
 
+                /* set family relations */
                 ifTrue.appendChildren(ifBlock);
                 for (Node_AST child: ifBlock) {
                     child.setParent(ifTrue);
@@ -196,11 +261,13 @@ public class Parser {
 
                 return ifNode;
             }
+            /* elif statement: 'ELIF <EXP> ":" NEW_LINE' { <STAT> } */
             case "ELIF":{
                 tokenEnhancedIterator.next();
 
                 Node_AST elifNode = new Node_AST((token));
 
+                /* parse exp in elif statement */
                 Node_AST    elifExp = parseExp(tokenEnhancedIterator),
                             elifTrue = new Node_AST(new Token("eliftrue", "ELIF_TRUE",
                         tokenEnhancedIterator.current().getRow(), tokenEnhancedIterator.current().getColumn()));
@@ -208,8 +275,10 @@ public class Parser {
                 isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
                 isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
 
+                /* parse block after elif */
                 ArrayList<Node_AST> elifBlock = parseBlock(currentSpaceCount, tokenEnhancedIterator);
 
+                /* set family relations */
                 elifTrue.appendChildren(elifBlock);
                 for (Node_AST child: elifBlock) {
                     child.setParent(elifTrue);
@@ -222,6 +291,7 @@ public class Parser {
 
                 return elifNode;
             }
+            /* elif statement: 'ELSE ":" NEW_LINE' { <STAT> } */
             case "ELSE":{
                 tokenEnhancedIterator.next();
 
@@ -232,6 +302,7 @@ public class Parser {
 
                 ArrayList <Node_AST> elseBlock = parseBlock(currentSpaceCount, tokenEnhancedIterator);
 
+                /* set family relations */
                 elseNode.appendChildren(elseBlock);
                 for (Node_AST child: elseBlock) {
                     child.setParent(elseNode);
@@ -239,6 +310,7 @@ public class Parser {
 
                 return elseNode;
             }
+            /* else variant such as create var, or do something: <EXP> */
             default: {
                 Node_AST exp = parseExp(tokenEnhancedIterator);
 
@@ -249,12 +321,19 @@ public class Parser {
         }
     }
 
+    /**
+     * parse Expression type
+     * @param tokenEnhancedIterator - iterator
+     * @return - expression node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseExp(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Token token = tokenEnhancedIterator.next(),
                 token2 = tokenEnhancedIterator.next();
 
         tokenEnhancedIterator.previous();
         tokenEnhancedIterator.previous();
+        /* parse variable assignment: '<WORD> "=" <EXP>' */
         if (token.getType().equals("WORD") && token2.getType().equals("ASSIGN")){
             tokenEnhancedIterator.next();
             tokenEnhancedIterator.next();
@@ -270,24 +349,37 @@ public class Parser {
 
             return id;
         }
+        /* parse ternary operator, or other priority actions */
         else {
             return parseTernar(tokenEnhancedIterator);
         }
     }
 
+    /**
+     * parse Ternary operator, or priority actions
+     * @param tokenEnhancedIterator - iterator
+     * @return - node which is useful for expression
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseTernar(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
+        /* parse true condition: <EXP>, or priority, if this is not ternary */
         Node_AST trueCon = parsePriority(15, tokenEnhancedIterator);
 
+        /* parse ternary */
         if (tokenEnhancedIterator.peek().getType().equals("IF")){
             tokenEnhancedIterator.next();
+
+            /* expression for if: IF <EXP> */
             Node_AST ifExp = parsePriority(15, tokenEnhancedIterator);
 
             isLikeTemplate(tokenEnhancedIterator, "ELSE", 6);
 
+            /* parse ternary: ELSE <TERNAR> */
             Node_AST elseCon = parseTernar(tokenEnhancedIterator),
                         ternarNode = new Node_AST(new Token("ternar", "TERNAR",
                                 ifExp.getCurrent().getRow(), ifExp.getCurrent().getColumn()));
 
+            /* set family relations */
             ifExp.setParent(ternarNode);
             trueCon.setParent(ternarNode);
             elseCon.setParent(ternarNode);
@@ -301,10 +393,21 @@ public class Parser {
         return trueCon;
     }
 
+    /**
+     * parse all arithmetic/logical/bitwise operators by their priority level
+     * use recursive for going deeper in priority and check equals
+     * @param prior - current level priority
+     * @param tokenEnhancedIterator - iterator
+     * @return - node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parsePriority(int prior, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Node_AST topOperSign = null, left;
+
+        /* exit from recursion, go to parseFactor (top priority method) */
         if (prior <= 6)
             left = parseFactor(tokenEnhancedIterator);
+        /* go deeper */
         else
             left = parsePriority(prior-1, tokenEnhancedIterator);
 
@@ -312,25 +415,36 @@ public class Parser {
                             operQueue = new ArrayList<>();
         nodeQueue.add(left);
 
-        Token token = tokenEnhancedIterator.next();
-        tokenEnhancedIterator.previous();
+        Token token = tokenEnhancedIterator.peek();
 
+        /* if equals operator: <OPER> <EXP> */
         if (token.getType().matches(priority.get(prior))) {
+            /* check for repeating operators with one priority: { <OPER> <EXP> } */
             while (token.getType().matches(priority.get(prior))) {
                 tokenEnhancedIterator.next();
 
+                /* add operator node to list */
                 operQueue.add(new Node_AST(token));
 
                 Node_AST node;
+                /* exit from recursion, go to parseFactor (top priority method) */
                 if (prior <= 6)
                     node = parseFactor(tokenEnhancedIterator);
+                /* go deeper */
                 else
                     node = parsePriority(prior-1, tokenEnhancedIterator);
+
+                /* add right node to list */
                 nodeQueue.add(node);
 
-                token = tokenEnhancedIterator.next();
-                tokenEnhancedIterator.previous();
+                token = tokenEnhancedIterator.peek();
             }
+
+            /*
+            * reverse lists for going back because
+            * first operator in row of one level operators
+            * must be calculated first
+            */
             Collections.reverse(operQueue);
             Collections.reverse(nodeQueue);
 
@@ -339,6 +453,7 @@ public class Parser {
             topOperSign = enhancedIteratorOper.next();
             topOperSign.appendChild(enhancedIteratorNode.next());
 
+            /* create relations in backwards order */
             while (enhancedIteratorOper.hasNext()) {
                 Node_AST deepest = topOperSign.getDeepestLeft(),
                         tmpOper = enhancedIteratorOper.next(),
@@ -352,19 +467,30 @@ public class Parser {
             }
             topOperSign.getDeepestLeft().setFirstChild(enhancedIteratorNode.next());
         }
+
+        /* return call stack, or only left, if one element */
         return topOperSign == null ? left : topOperSign;
     }
 
+    /**
+     * parse Factor, top level priority operators
+     * @param tokenEnhancedIterator - iterator
+     * @return - node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseFactor(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Token token = tokenEnhancedIterator.next();
 
         Node_AST oper;
+
+        /* parse ' "(" <EXP> ")" ' */
         if (token.getType().equals("LBR")){
             Node_AST exp = parseExp(tokenEnhancedIterator);
             isLikeTemplate(tokenEnhancedIterator, "RBR", 5);
 
             return exp;
         }
+        /* parse ' <UNAR> <EXP> ' */
         else {
             if (token.getType().matches("(ADD)|(SUB)|(NOT)")){
                 oper = new Node_AST(new Token(token.getValue(), "UNAR_"+token.getType(),
@@ -374,12 +500,15 @@ public class Parser {
                 nextFactor.setParent(oper);
                 return oper;
             }
+            /* parse getter from var: ' <WORD> ' */
             else {
                 if (token.getType().equals("WORD")){
                     return new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn()));
                 }
+                /* parse number: ' <NUM> ' */
                 else {
                     if (token.getType().matches("(INT)|(FLOAT)|(BINNUM)|(OCTNUM)|(HEXNUM)|(STRING)")) {
+                        /* parse <NUM> to <INT> */
                         return parseExpression(token);
                     } else {
                         fail(3, token);
@@ -390,6 +519,12 @@ public class Parser {
         return null;
     }
 
+    /**
+     * convert number from any system, or float to decimal int
+     * @param token - token that will be converted
+     * @return - int node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseExpression(Token token) throws CompilerException {
         String value = token.getValue();
 
@@ -400,6 +535,7 @@ public class Parser {
             case "FLOAT": {
                 StringBuilder casted = new StringBuilder();
                 for (char ch: value.toCharArray()) {
+                    /* stop on <.> */
                     if (ch == '.'){
                         break;
                     }
@@ -434,9 +570,17 @@ public class Parser {
         return null;
     }
 
+    /**
+     * parse function calling
+     * @param tokenEnhancedIterator - iterator
+     * @return - calling node
+     * @throws CompilerException - fail will produce this exception
+     */
     private Node_AST parseDefCall(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
         Token token;
         Node_AST defCall = null;
+
+        /* for test if function calling is in format: ' <WORD> "(" ")" ' */
         for (String part : templates.get("CALL")) {
             token = tokenEnhancedIterator.next();
             if (part.equals("WORD")){
@@ -453,6 +597,12 @@ public class Parser {
         return defCall;
     }
 
+    /**
+     * throw CompilerException with error message and token, which call an exception
+     * @param errId - massage error id
+     * @param token - token, which call an exception
+     * @throws CompilerException - threw for stop program working
+     */
     private void fail(int errId, Token token) throws CompilerException {
         String msg;
 
@@ -490,10 +640,18 @@ public class Parser {
         throw new CompilerException(msg, token);
     }
 
+    /**
+     * getter for map with functions AST
+     * @return - map
+     */
     public HashMap<String, AST> getDefAST() {
         return defAST;
     }
 
+    /**
+     * getter for main AST
+     * @return - main AST
+     */
     public AST getMainAST() {
         return mainAST;
     }

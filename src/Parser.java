@@ -97,55 +97,30 @@ public class Parser {
      * @throws CompilerException - fail will produce this exception
      */
     private void parseProg(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        /* parse every function */
-        while (tokenEnhancedIterator.peek().getType().equals("DEF")){
-            /* create function AST */
-            AST tmp = new AST(parseFunc(tokenEnhancedIterator));
-            /* add AST to map */
-            defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
-        }
-        /* parse every function calling */
+        /* parsing program like a block */
         while (tokenEnhancedIterator.hasNext()){
-            /* create node for function calling */
-            Node_AST call = parseDefCall(tokenEnhancedIterator);
+            Node_AST node = parseStat(0, tokenEnhancedIterator);
 
-            /* fail if function was not previously defined */
-            if (!defAST.containsKey(call.getCurrent().getValue()))
-                fail(4, call.getCurrent());
+            switch (node.getCurrent().getType()){
+                case "DEF_WORD": {
 
-            call.appendChildren(defAST.get(call.getCurrent().getValue()).getRoot().getChildren());
-            mainAST.getRoot().appendChild(call);
+                    /* create function AST */
+                    AST tmp = new AST(node);
+
+                    if (defAST.containsKey(node.getCurrent().getValue())){
+                        fail(8, node.getCurrent());
+                    }
+
+                    /* add AST to map */
+                    defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
+                    break;
+                }
+                default:{
+                    node.setParent(mainAST.getRoot());
+                    mainAST.getRoot().appendChild(node);
+                }
+            }
         }
-    }
-
-    /**
-     * parse Function type
-     * @param tokenEnhancedIterator - iterator
-     * @return - function node
-     * @throws CompilerException - fail will produce this exception
-     */
-    private Node_AST parseFunc(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        Token defToken;
-
-        /* test if tokens is correctly placed for function */
-        isLikeTemplate(tokenEnhancedIterator, "DEF", 1);
-        defToken = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
-        isLikeTemplate(tokenEnhancedIterator, "LBR", 1);
-        isLikeTemplate(tokenEnhancedIterator, "RBR", 1);
-        isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
-        isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
-
-        Node_AST def = new Node_AST(new Token(defToken.getValue(), "DEF_WORD",
-                defToken.getRow(), defToken.getColumn()));
-
-        /* parse function block */
-        ArrayList<Node_AST> statements = parseBlock(0, tokenEnhancedIterator);
-        def.appendChildren(statements);
-        for (Node_AST child: statements) {
-            child.setParent(def);
-        }
-
-        return def;
     }
 
     /**
@@ -197,6 +172,9 @@ public class Parser {
 
             statements.add(parseStat(currentSpaceTabCount, tokenEnhancedIterator));
 
+            if (!tokenEnhancedIterator.hasNext())
+                return statements;
+
             token = tokenEnhancedIterator.peek();
         }while(true);
 
@@ -212,11 +190,38 @@ public class Parser {
      * @return - statement node
      * @throws CompilerException - fail will produce this exception
      */
-    private Node_AST parseStat(int currentSpaceCount, EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
+    private Node_AST parseStat(int currentSpaceCount, EnhancedIterator<Token> tokenEnhancedIterator)
+            throws CompilerException {
         Token token;
 
         token = tokenEnhancedIterator.peek();
         switch (token.getType()){
+
+            /* create function statement: 'DEF WORD "(" ")" ":" NEW_LINE { STAT }' */
+            case "DEF":{
+                tokenEnhancedIterator.next();
+
+                /* test if tokens is correctly placed for function */
+                Token defToken = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
+                isLikeTemplate(tokenEnhancedIterator, "LBR", 1);
+                isLikeTemplate(tokenEnhancedIterator, "RBR", 1);
+                isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
+                isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
+
+                Node_AST def = new Node_AST(new Token(defToken.getValue(), "DEF_WORD",
+                        defToken.getRow(), defToken.getColumn()));
+
+                /* parse function block */
+                ArrayList<Node_AST> statements = parseBlock(currentSpaceCount, tokenEnhancedIterator);
+
+                def.appendChildren(statements);
+                for (Node_AST child: statements) {
+                    child.setParent(def);
+                }
+
+                return def;
+            }
+
             /* return statement: 'RETURN <EXP> NEW_LINE' */
             case "RETURN":{
                 tokenEnhancedIterator.next();
@@ -232,6 +237,7 @@ public class Parser {
 
                 return returnNode;
             }
+
             /* if statement: 'IF <EXP> ":" NEW_LINE' { <STAT> } */
             case "IF":{
                 tokenEnhancedIterator.next();
@@ -261,6 +267,7 @@ public class Parser {
 
                 return ifNode;
             }
+
             /* elif statement: 'ELIF <EXP> ":" NEW_LINE' { <STAT> } */
             case "ELIF":{
                 tokenEnhancedIterator.next();
@@ -291,6 +298,7 @@ public class Parser {
 
                 return elifNode;
             }
+
             /* elif statement: 'ELSE ":" NEW_LINE' { <STAT> } */
             case "ELSE":{
                 tokenEnhancedIterator.next();
@@ -310,6 +318,7 @@ public class Parser {
 
                 return elseNode;
             }
+
             /* else variant such as create var, or do something: <EXP> */
             default: {
                 Node_AST exp = parseExp(tokenEnhancedIterator);
@@ -322,7 +331,7 @@ public class Parser {
     }
 
     /**
-     * parse Expression type
+     * parse assignment or start parsing ternary
      * @param tokenEnhancedIterator - iterator
      * @return - expression node
      * @throws CompilerException - fail will produce this exception
@@ -333,16 +342,47 @@ public class Parser {
 
         tokenEnhancedIterator.previous();
         tokenEnhancedIterator.previous();
-        /* parse variable assignment: '<WORD> "=" <EXP>' */
-        if (token.getType().equals("WORD") && token2.getType().equals("ASSIGN")){
+        /* parse variable assignment: '<WORD> [("+"|"-"|"/"|"*"|"&"|"|"|"^"|"<<"|">>")]"=" <EXP>' */
+        if (token.getType().equals("WORD") && (token2.getType().equals("ASSIGN") ||
+                                                token2.getType().equals("ADD_ASSIGN") ||
+                                                token2.getType().equals("SUB_ASSIGN") ||
+                                                token2.getType().equals("DIV_ASSIGN") ||
+                                                token2.getType().equals("MUL_ASSIGN") ||
+                                                token2.getType().equals("PERCENT_ASSIGN") ||
+                                                token2.getType().equals("L_SHIFT_ASSIGN") ||
+                                                token2.getType().equals("R_SHIFT_ASSIGN") ||
+                                                token2.getType().equals("BIT_AND_ASSIGN") ||
+                                                token2.getType().equals("BIT_OR_ASSIGN") ||
+                                                token2.getType().equals("BIT_XOR_ASSIGN"))){
             tokenEnhancedIterator.next();
             tokenEnhancedIterator.next();
-            Node_AST id = new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn()));
-
-            Node_AST assign = new Node_AST(token2),
+            Node_AST id = new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn())),
+                    assign = new Node_AST(new Token("=", "ASSIGN", token2.getRow(), token2.getColumn())),
                     exp = parseExp(tokenEnhancedIterator);
-            assign.appendChild(exp);
-            exp.setParent(assign);
+
+            /* do this for any TYPE_ASSIGN */
+            if (!token2.getType().equals("ASSIGN")){
+                Node_AST operation = new Node_AST(new Token(
+                        /* make + from += */
+                        token2.getValue().substring(0, token2.getValue().length()-1),
+                        /* make ADD from ADD_ASSIGN */
+                        token2.getType().substring(0, token2.getType().length()-7),
+                        token2.getRow(), token2.getColumn())),
+                        id2 = new Node_AST(id.getCurrent());
+
+                operation.appendChild(id2);
+                operation.appendChild(exp);
+
+                id2.setParent(operation);
+                exp.setParent(operation);
+
+                assign.appendChild(operation);
+                operation.setParent(assign);
+            }
+            else {
+                assign.appendChild(exp);
+                exp.setParent(assign);
+            }
 
             id.appendChild(assign);
             assign.setParent(id);
@@ -485,7 +525,7 @@ public class Parser {
 
         /* parse ' "(" <EXP> ")" ' */
         if (token.getType().equals("LBR")){
-            Node_AST exp = parseExp(tokenEnhancedIterator);
+            Node_AST exp = parseTernar(tokenEnhancedIterator);
             isLikeTemplate(tokenEnhancedIterator, "RBR", 5);
 
             return exp;
@@ -503,7 +543,17 @@ public class Parser {
             /* parse getter from var: ' <WORD> ' */
             else {
                 if (token.getType().equals("WORD")){
-                    return new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn()));
+                    if (tokenEnhancedIterator.peek().getType().equals("LBR")){
+                        isLikeTemplate(tokenEnhancedIterator, "LBR", 5);
+                        isLikeTemplate(tokenEnhancedIterator, "RBR", 7);
+
+                        return new Node_AST(new Token(token.getValue(), "DEF_CALL",
+                                token.getRow(), token.getColumn()), null,
+                                defAST.get(token.getValue()).getRoot().getChildren());
+                    }
+                    else {
+                        return new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn()));
+                    }
                 }
                 /* parse number: ' <NUM> ' */
                 else {
@@ -571,33 +621,6 @@ public class Parser {
     }
 
     /**
-     * parse function calling
-     * @param tokenEnhancedIterator - iterator
-     * @return - calling node
-     * @throws CompilerException - fail will produce this exception
-     */
-    private Node_AST parseDefCall(EnhancedIterator<Token> tokenEnhancedIterator) throws CompilerException {
-        Token token;
-        Node_AST defCall = null;
-
-        /* for test if function calling is in format: ' <WORD> "(" ")" ' */
-        for (String part : templates.get("CALL")) {
-            token = tokenEnhancedIterator.next();
-            if (part.equals("WORD")){
-                defCall = new Node_AST(new Token(token.getValue(), "DEF_CALL",
-                        token.getRow(), token.getColumn()));
-            }
-            else {
-                if (!token.getType().equals(part)) {
-                    fail(1, token);
-                }
-            }
-        }
-
-        return defCall;
-    }
-
-    /**
      * throw CompilerException with error message and token, which call an exception
      * @param errId - massage error id
      * @param token - token, which call an exception
@@ -633,6 +656,14 @@ public class Parser {
             }
             case 6: {
                 msg = "Expect ELSE token";
+                break;
+            }
+            case 7: {
+                msg = "Expected '('";
+                break;
+            }
+            case 8: {
+                msg = "This function is already created";
                 break;
             }
             default: msg = "Unknown error";

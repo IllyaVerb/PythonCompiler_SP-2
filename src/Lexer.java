@@ -131,6 +131,16 @@ public class Lexer {
         symbols.put("|", "BIT_OR");
         symbols.put("^", "BIT_XOR");
         symbols.put("~", "BIT_NOT");
+        symbols.put("+=", "ADD_ASSIGN");
+        symbols.put("-=", "SUB_ASSIGN");
+        symbols.put("/=", "DIV_ASSIGN");
+        symbols.put("*=", "MUL_ASSIGN");
+        symbols.put("%=", "PERCENT_ASSIGN");
+        symbols.put("<<=", "L_SHIFT_ASSIGN");
+        symbols.put(">>=", "R_SHIFT_ASSIGN");
+        symbols.put("&=", "BIT_AND_ASSIGN");
+        symbols.put("|=", "BIT_OR_ASSIGN");
+        symbols.put("^=", "BIT_XOR_ASSIGN");
 
         /* fill delimiter tokens */
         whitespace.put(" ", "SPACE");
@@ -185,116 +195,124 @@ public class Lexer {
 
         /* go by every symbol and choosing correct token */
         for (int i=0; i < symbLine.length; i++) {
-            /* symbol tokens with two characters */
-            if (i+1 != symbLine.length && symbols.containsKey(symbLine[i] + symbLine[i+1])){
-                tokens.add(new Token(symbLine[i] + symbLine[i+1],
-                        symbols.get(symbLine[i] + symbLine[i+1]), row, i));
-                i++;
+            /* symbol tokens with tree characters */
+            if (i+2 < symbLine.length && symbols.containsKey(symbLine[i] +
+                                                                symbLine[i+1] +
+                                                                symbLine[i+2])){
+                tokens.add(new Token(symbLine[i] + symbLine[i+1] + symbLine[i+2],
+                        symbols.get(symbLine[i] + symbLine[i+1] + symbLine[i+2]), row, i));
+                i+=2;
             }
             else {
-                /* one character symbol tokens and string var */
-                if (symbols.containsKey(symbLine[i])){
-                    /* string var choose if start with <'> or <"> */
-                    if (i+1 != symbLine.length && (symbLine[i].matches("[\"']"))){
-                        StringBuilder stringToken = new StringBuilder(symbLine[i]);
-                        short j = 1;
-                        /* add characters while line not ended or symbol is <'> or <"> */
-                        while (i+j < symbLine.length){
-                            stringToken.append(symbLine[i + j]);
-                            j++;
-                            if (symbLine[i+j-1].equals(symbLine[i])){
-                                break;
-                            }
-                        }
-
-                        tokens.add(new Token(stringToken.toString(), "STRING", row, i));
-
-                        /* jump to end of string */
-                        i += stringToken.length()-1;
-                    }
-                    else {
-                        /* add symbol token */
-                        tokens.add(new Token(symbLine[i], symbols.get(symbLine[i]), row, i));
-                    }
-                }
-                else {
-                    if (whitespace.containsKey(symbLine[i])){
-                        /* add whitespace token if it on start of line */
-                        if (spaceTabPart) {
-                            tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i]), row, i));
-                        }
-                    }
-                    else {
-                        /* add bin/oct/hex number token if first is <0> and second is <x|o|b> */
-                        if (i+1 != symbLine.length && symbLine[i].equals("0") &&
-                                symbLine[i+1].matches("[xob]")){
-                            /* using the same algorithm as string var */
-                            StringBuilder num = new StringBuilder("0" + symbLine[i + 1]);
-                            short j = 2;
-                            while ((i+j < symbLine.length) &&
-                                    isOthNum(symbLine[i+j], symbLine[i+1]) && j < 8){
-                                num.append(symbLine[i + j]);
+                /* symbol tokens with two characters */
+                if (i + 1 < symbLine.length && symbols.containsKey(symbLine[i] + symbLine[i + 1])) {
+                    tokens.add(new Token(symbLine[i] + symbLine[i + 1],
+                            symbols.get(symbLine[i] + symbLine[i + 1]), row, i));
+                    i++;
+                } else {
+                    /* one character symbol tokens and string var */
+                    if (symbols.containsKey(symbLine[i])) {
+                        /* string var choose if start with <'> or <"> */
+                        if (i + 1 != symbLine.length && (symbLine[i].matches("[\"']"))) {
+                            StringBuilder stringToken = new StringBuilder(symbLine[i]);
+                            short j = 1;
+                            /* add characters while line not ended or symbol is <'> or <"> */
+                            while (i + j < symbLine.length) {
+                                stringToken.append(symbLine[i + j]);
                                 j++;
+                                if (symbLine[i + j - 1].equals(symbLine[i])) {
+                                    break;
+                                }
                             }
 
-                            switch (symbLine[i+1]){
-                                case "x": tokens.add(new Token(num.toString(), "HEXNUM", row, i)); break;
-                                case "o": tokens.add(new Token(num.toString(), "OCTNUM", row, i)); break;
-                                case "b": tokens.add(new Token(num.toString(), "BINNUM", row, i)); break;
-                            }
+                            tokens.add(new Token(stringToken.toString(), "STRING", row, i));
 
-                            i += num.length()-1;
+                            /* jump to end of string */
+                            i += stringToken.length() - 1;
+                        } else {
+                            /* add symbol token */
+                            tokens.add(new Token(symbLine[i], symbols.get(symbLine[i]), row, i));
                         }
-                        else {
-                            /* add float or int number tokens */
-                            if (symbLine[i].matches("\\d")){
+                    } else {
+                        if (whitespace.containsKey(symbLine[i])) {
+                            /* add whitespace token if it on start of line */
+                            if (spaceTabPart) {
+                                tokens.add(new Token(symbLine[i], whitespace.get(symbLine[i]), row, i));
+                            }
+                        } else {
+                            /* add bin/oct/hex number token if first is <0> and second is <x|o|b> */
+                            if (i + 1 != symbLine.length && symbLine[i].equals("0") &&
+                                    symbLine[i + 1].matches("[xob]")) {
                                 /* using the same algorithm as string var */
-                                StringBuilder num = new StringBuilder();
-                                /* float flag, true if found <.> */
-                                boolean isFloat = false;
-                                short j = 0;
-                                while (i+j < symbLine.length &&
-                                        symbLine[i+j].matches("[\\d.]")){
-                                    if (symbLine[i+j].equals(".")){
-                                        isFloat = true;
-                                    }
+                                StringBuilder num = new StringBuilder("0" + symbLine[i + 1]);
+                                short j = 2;
+                                while ((i + j < symbLine.length) &&
+                                        isOthNum(symbLine[i + j], symbLine[i + 1]) && j < 8) {
                                     num.append(symbLine[i + j]);
                                     j++;
                                 }
 
-                                if (isFloat){
-                                    tokens.add(new Token(num.toString(), "FLOAT", row, i));
+                                switch (symbLine[i + 1]) {
+                                    case "x":
+                                        tokens.add(new Token(num.toString(), "HEXNUM", row, i));
+                                        break;
+                                    case "o":
+                                        tokens.add(new Token(num.toString(), "OCTNUM", row, i));
+                                        break;
+                                    case "b":
+                                        tokens.add(new Token(num.toString(), "BINNUM", row, i));
+                                        break;
                                 }
-                                else {
-                                    tokens.add(new Token(num.toString(), "INT", row, i));
-                                }
-                                i += num.length()-1;
-                            }
-                            else {
-                                /* add word tokens */
-                                if (symbLine[i].matches("[a-zA-Z]")){
+
+                                i += num.length() - 1;
+                            } else {
+                                /* add float or int number tokens */
+                                if (symbLine[i].matches("\\d")) {
                                     /* using the same algorithm as string var */
-                                    StringBuilder wordToken = new StringBuilder();
+                                    StringBuilder num = new StringBuilder();
+                                    /* float flag, true if found <.> */
+                                    boolean isFloat = false;
                                     short j = 0;
-                                    while (i+j < symbLine.length &&
-                                            symbLine[i+j].matches("\\w")){
-                                        wordToken.append(symbLine[i + j]);
+                                    while (i + j < symbLine.length &&
+                                            symbLine[i + j].matches("[\\d.]")) {
+                                        if (symbLine[i + j].equals(".")) {
+                                            isFloat = true;
+                                        }
+                                        num.append(symbLine[i + j]);
                                         j++;
                                     }
 
-                                    tokens.add(new Token(wordToken.toString(),
-                                            keywords.getOrDefault(wordToken.toString(), "WORD"), row, i));
-                                    spaceTabPart = false;
-                                    i += wordToken.length()-1;
-                                }
-                                else {
-                                    /* if token not chosen before it, add undefined token */
-                                    tokens.add(new Token(symbLine[i], "UNDEF", row, i));
-                                    try {
-                                        throw new CompilerException("Undefined symbol", tokens.get(tokens.size()-1));
-                                    } catch (CompilerException e) {
-                                        System.err.println(e.getMessage());
-                                        System.err.println((int) symbLine[i].toCharArray()[0]);
+                                    if (isFloat) {
+                                        tokens.add(new Token(num.toString(), "FLOAT", row, i));
+                                    } else {
+                                        tokens.add(new Token(num.toString(), "INT", row, i));
+                                    }
+                                    i += num.length() - 1;
+                                } else {
+                                    /* add word tokens */
+                                    if (symbLine[i].matches("[a-zA-Z]")) {
+                                        /* using the same algorithm as string var */
+                                        StringBuilder wordToken = new StringBuilder();
+                                        short j = 0;
+                                        while (i + j < symbLine.length &&
+                                                symbLine[i + j].matches("\\w")) {
+                                            wordToken.append(symbLine[i + j]);
+                                            j++;
+                                        }
+
+                                        tokens.add(new Token(wordToken.toString(),
+                                                keywords.getOrDefault(wordToken.toString(), "WORD"), row, i));
+                                        spaceTabPart = false;
+                                        i += wordToken.length() - 1;
+                                    } else {
+                                        /* if token not chosen before it, add undefined token */
+                                        tokens.add(new Token(symbLine[i], "UNDEF", row, i));
+                                        try {
+                                            throw new CompilerException("Undefined symbol", tokens.get(tokens.size() - 1));
+                                        } catch (CompilerException e) {
+                                            System.err.println(e.getMessage());
+                                            System.err.println((int) symbLine[i].toCharArray()[0]);
+                                        }
                                     }
                                 }
                             }

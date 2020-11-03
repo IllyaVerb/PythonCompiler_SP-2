@@ -141,7 +141,7 @@ public class MainController {
         PrintStream ps = new PrintStream(consoleOutput);
 
         System.setOut(ps);
-        System.setErr(ps);
+        //System.setErr(ps);
 
         boolean compilationResult = compiler.compile();
 

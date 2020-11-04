@@ -1,6 +1,7 @@
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 /**
@@ -11,8 +12,10 @@ public class ASM_Creator {
     private final AST ast;
     /* map with function AST, [] */
     private final HashMap<String, AST> defAST;
-    /* variable map, [var name - place in stack] */
+    /* map for any operation block with asm code */
     private final HashMap<String, String> operationBlocks;
+    /* global variable map, [var name - place in stack] */
+    private HashMap<String, Integer> globalVariableMap;
     /* result, asm code */
     private final String asmCode;
     /* pointer to new variable */
@@ -38,8 +41,9 @@ public class ASM_Creator {
             "\tinvoke  _NumbToStr, ebx, ADDR buff\n" +
             "\tinvoke  StdOut,eax\n" +
             "\tinvoke  ExitProcess,0\n\n" +
-            "_main PROC\n\n" +
+            "_main PROC\n" +
             "%s" + // insert code
+            "\npop ebx\n" +
             "\n\tret\n\n" +
             "_main ENDP\n\n" +
             "%s" + // insert functions
@@ -73,6 +77,7 @@ public class ASM_Creator {
         this.ast = ast;
         this.defAST = defAST;
         this.operationBlocks = new HashMap<>();
+        this.globalVariableMap = new HashMap<>();
         this.varPointer = -1;
 
         /* fill map with asm fragments on every operation */
@@ -267,10 +272,22 @@ public class ASM_Creator {
                                                                     "push ebp\n" +
                                                                     "mov ebp, esp\n", defName));
 
-            funcTempl.append(genBlockCode(defAST.get(defName).getRoot().getChildren(), new ArrayList<>()));
+            /* generate variable map for parameters */
+            ArrayList<HashMap<String, Integer>> paramsList = new ArrayList<>();
+            HashMap<String, Integer> paramsMap = new HashMap<>();
+            for (Node_AST param :
+                    defAST.get(defName).getRoot().getChild(0).getChildren()) {
+                if (paramsMap.containsKey(param.getCurrent().getValue()))
+                    throw new CompilerException("This parameter is already created!", param.getCurrent());
+
+                paramsMap.put(param.getCurrent().getValue(), paramsMap.size()-2);
+            }
+            paramsList.add(paramsMap);
+
+            funcTempl.append(genBlockCode(defAST.get(defName).getRoot().getChildren(), paramsList));
 
             /* make {defName} epilog */
-            funcTempl.append(String.format( "\npop ebx\n" +
+            funcTempl.append(String.format( "\npop edx\n" +
                                             "mov esp, ebp\n" +
                                             "pop ebp\n" +
                                             "ret\n" +
@@ -299,6 +316,10 @@ public class ASM_Creator {
 
         /* go by every statement in function body */
         for (Node_AST child: block) {
+
+            /* if found PARAMS continue */
+            if (child.getCurrent().getType().equals("PARAMS"))
+                continue;
 
             /* append ending of IF construction using ifFlag */
             if (!child.getCurrent().getType().equals("IF") &&
@@ -339,10 +360,10 @@ public class ASM_Creator {
             /* RETURN statement, make retFlag true and break from function */
             case "RETURN":{
                 blockItemCode.append(genExpCode(variableMap, blockItem.getChild(0)));
-                blockItemCode.append("\npop ebx\n" +
-                        "mov esp, ebp\n" +
-                        "pop ebp\n" +
-                        "ret\n");
+                blockItemCode.append("\npop edx\n" +
+                                    "mov esp, ebp\n" +
+                                    "pop ebp\n" +
+                                    "ret\n");
                 break;
             }
 
@@ -433,6 +454,12 @@ public class ASM_Creator {
                 break;
             }
 
+            /* DEF_CALL statement */
+            case "DEF_CALL":{
+                blockItemCode.append(genExpCode(variableMap, blockItem));
+                break;
+            }
+
             /* incorrect operation, throw exception */
             default:
                 throw new CompilerException("Incorrect type of operation", blockItem.getCurrent());
@@ -451,6 +478,7 @@ public class ASM_Creator {
     private String genExpCode(ArrayList<HashMap<String, Integer>> variableMap, Node_AST current)
             throws CompilerException {
         switch (current.getCurrent().getType()){
+
             /* operations with one operand */
             case "UNAR_ADD":
             case "UNAR_SUB":
@@ -458,6 +486,7 @@ public class ASM_Creator {
                 return genExpCode(variableMap, current.getChild(0))+
                         operationBlocks.get(current.getCurrent().getType());
             }
+
             /* operations with two operands */
             case "L_SHIFT":
             case "R_SHIFT":
@@ -476,6 +505,7 @@ public class ASM_Creator {
                         genExpCode(variableMap, current.getChild(1))+
                     operationBlocks.get(current.getCurrent().getType());
             }
+
             /* operations with logic operands */
             case "OR":
             case "AND" :{
@@ -484,6 +514,7 @@ public class ASM_Creator {
                                         current.hashCode(),
                                         genExpCode(variableMap, current.getChild(1)));
             }
+
             /* ternary operand */
             case "TERNAR" :{
                 return genExpCode(variableMap, current.getChild(0))+
@@ -492,6 +523,7 @@ public class ASM_Creator {
                                         genExpCode(variableMap, current.getChild(1)),
                                         genExpCode(variableMap, current.getChild(2)));
             }
+
             /* value getter */
             case "INT(CHAR)":
             case "INT(BINNUM)":
@@ -502,6 +534,7 @@ public class ASM_Creator {
                 return String.format(operationBlocks.get(current.getCurrent().getType()),
                                                         current.getCurrent().getValue());
             }
+
             /* work with variables */
             case "ID": {
                 // create variable
@@ -538,6 +571,35 @@ public class ASM_Creator {
                 }
                 throw new CompilerException("Unknown variable", current.getCurrent());
             }
+
+            /* function calling */
+            case "DEF_CALL":{
+                StringBuilder ret = new StringBuilder();
+
+                if (current.getChild(0).getChildren().size() !=
+                        defAST.get(current.getCurrent().getValue())
+                                .getRoot().getChild(0).getChildren().size()){
+                    throw new CompilerException(String.format(  "Incorrect count of parameters!\n" +
+                                                                "Need %d, but found %d.",
+                            defAST.get(current.getCurrent().getValue())
+                                    .getRoot().getChild(0).getChildren().size(),
+                            current.getChild(0).getChildren().size()), current.getCurrent());
+                }
+
+                Collections.reverse(current.getChild(0).getChildren());
+                for (Node_AST param :
+                        current.getChild(0).getChildren()) {
+                    ret.append(genExpCode(variableMap, param));
+                }
+
+                ret.append(String.format(   "\ncall %s\n" +
+                                            "add esp, %d\n" +
+                                            "push edx\n",
+                        current.getCurrent().getValue(), 4*current.getChild(0).getChildren().size()));
+
+                return ret.toString();
+            }
+
             /* error if operations is unknown */
             default:
                 System.err.println(current.getParent().getParent().getCurrent().getType());
@@ -549,14 +611,19 @@ public class ASM_Creator {
      * code for _main procedure, generate other procedure calling
      * @return - _main code
      */
-    private String mainCode(){
+    private String mainCode() throws CompilerException {
         StringBuilder code = new StringBuilder();
 
-        for (Node_AST node: ast.getRoot().getChildren()) {
+        ArrayList<HashMap<String, Integer>> varList = new ArrayList<>();
+        varList.add(globalVariableMap);
+
+        code.append(genBlockCode(ast.getRoot().getChildren(), varList));
+
+        /*for (Node_AST node: ast.getRoot().getChildren()) {
             if ("DEF_CALL".equals(node.getCurrent().getType())) {
                 code.append(String.format("\tcall %s\n", node.getCurrent().getValue()));
             }
-        }
+        }*/
 
         return code.toString();
     }

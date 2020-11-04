@@ -107,12 +107,12 @@ public class Parser {
                     /* create function AST */
                     AST tmp = new AST(node);
 
-                    if (defAST.containsKey(node.getCurrent().getValue())){
-                        fail(8, node.getCurrent());
-                    }
-
                     /* add AST to map */
-                    defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
+                    if (defAST.containsKey(node.getCurrent().getValue()))
+                        defAST.replace(tmp.getRoot().getCurrent().getValue(), tmp);
+                    else
+                        defAST.put(tmp.getRoot().getCurrent().getValue(), tmp);
+
                     break;
                 }
                 default:{
@@ -124,7 +124,7 @@ public class Parser {
     }
 
     /**
-     * parse Block
+     * parse Block, as '{ TAB | SPACE } STAT'
      * @param prevSpaceTabCount - count of tabs and spaces common for previous structure
      * @param tokenEnhancedIterator - iterator
      * @return - list of statements
@@ -184,7 +184,7 @@ public class Parser {
     }
 
     /**
-     * parse Statement type
+     * parse DEF | RETURN | IF | ELIF | ELSE, or expression
      * @param currentSpaceCount - spaces count in current statement
      * @param tokenEnhancedIterator - iterator
      * @return - statement node
@@ -204,12 +204,19 @@ public class Parser {
                 /* test if tokens is correctly placed for function */
                 Token defToken = isLikeTemplate(tokenEnhancedIterator, "WORD", 1);
                 isLikeTemplate(tokenEnhancedIterator, "LBR", 1);
+
+                /* parsing method parameters */
+                Node_AST params = parseParams(tokenEnhancedIterator, true);
+
                 isLikeTemplate(tokenEnhancedIterator, "RBR", 1);
                 isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
                 isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
 
                 Node_AST def = new Node_AST(new Token(defToken.getValue(), "DEF_WORD",
                         defToken.getRow(), defToken.getColumn()));
+
+                params.setParent(def);
+                def.appendChild(params);
 
                 /* parse function block */
                 ArrayList<Node_AST> statements = parseBlock(currentSpaceCount, tokenEnhancedIterator);
@@ -328,6 +335,53 @@ public class Parser {
                 return exp;
             }
         }
+    }
+
+    /**
+     * parsing parameters of functions for defining and calling
+     * @param tokenEnhancedIterator - iterator
+     * @param isDef - flag showing is this parameters in defining, or in calling
+     * @return - parameters node
+     * @throws CompilerException - fail will produce this exception
+     */
+    private Node_AST parseParams(EnhancedIterator<Token> tokenEnhancedIterator, boolean isDef)
+            throws CompilerException {
+        Node_AST params = new Node_AST(new Token("params", "PARAMS",
+                tokenEnhancedIterator.peek().getRow(), tokenEnhancedIterator.peek().getColumn()));
+        Token token = tokenEnhancedIterator.peek();
+
+        while (!token.getType().equals("RBR")){
+            if (isDef) {
+                tokenEnhancedIterator.next();
+                if (token.getType().equals("WORD")) {
+                    if (tokenEnhancedIterator.peek().getType().equals("LBR")) {
+                        isLikeTemplate(tokenEnhancedIterator, "LBR", 5);
+                        isLikeTemplate(tokenEnhancedIterator, "RBR", 7);
+
+                        params.appendChild(new Node_AST(new Token(token.getValue(), "DEF_CALL",
+                                token.getRow(), token.getColumn()), null,
+                                defAST.get(token.getValue()).getRoot().getChildren()));
+                    } else {
+                        params.appendChild(new Node_AST(new Token(token.getValue(), "ID",
+                                token.getRow(), token.getColumn())));
+                    }
+                }
+            }
+            else {
+                params.appendChild(parseTernar(tokenEnhancedIterator));
+            }
+
+            if (tokenEnhancedIterator.peek().getType().equals("COMMA"))
+                tokenEnhancedIterator.next();
+            else {
+                if (!tokenEnhancedIterator.peek().getType().equals("RBR"))
+                    fail(5, tokenEnhancedIterator.peek());
+            }
+
+            token = tokenEnhancedIterator.peek();
+        }
+
+        return params;
     }
 
     /**
@@ -545,11 +599,19 @@ public class Parser {
                 if (token.getType().equals("WORD")){
                     if (tokenEnhancedIterator.peek().getType().equals("LBR")){
                         isLikeTemplate(tokenEnhancedIterator, "LBR", 5);
+
+                        /* parsing method parameters */
+                        Node_AST params = parseParams(tokenEnhancedIterator, false);
+
                         isLikeTemplate(tokenEnhancedIterator, "RBR", 7);
 
-                        return new Node_AST(new Token(token.getValue(), "DEF_CALL",
-                                token.getRow(), token.getColumn()), null,
-                                defAST.get(token.getValue()).getRoot().getChildren());
+                        Node_AST def_call = new Node_AST(new Token(token.getValue(), "DEF_CALL",
+                                token.getRow(), token.getColumn()));
+
+                        params.setParent(def_call);
+                        def_call.appendChild(params);
+
+                        return def_call;
                     }
                     else {
                         return new Node_AST(new Token(token.getValue(), "ID", token.getRow(), token.getColumn()));
@@ -660,10 +722,6 @@ public class Parser {
             }
             case 7: {
                 msg = "Expected '('";
-                break;
-            }
-            case 8: {
-                msg = "This function is already created";
                 break;
             }
             default: msg = "Unknown error";

@@ -40,6 +40,17 @@ public class Compiler {
             System.err.println(e.getMessage());
             return false;
         }
+
+        System.out.println("_________________METHODS________________\n");
+
+        /* print all function AST's */
+        for (String defName :
+                parser.getDefAST().keySet()) {
+            parser.getDefAST().get(defName).printAST();
+            System.out.println();
+        }
+        System.out.println("___________________MAIN_________________\n");
+
         /* print AST (result of parsing) */
         parser.getMainAST().printAST();
         System.out.println("\n========================================\n");

@@ -31,7 +31,7 @@ public class Main extends Application {
                     textInput = (TextArea) scene.lookup("#text_input_print");
 
         /* name for all files */
-        String myName = "4-4-Java-IO-82-Verbovskyi";
+        String myName = "5-4-Java-IO-82-Verbovskyi";
 
         /* set default open filename as %myName%.py */
         textFilename.setText(String.format("%s\\%s.py", System.getProperty("user.dir"), myName));

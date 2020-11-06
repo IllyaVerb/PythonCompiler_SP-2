@@ -134,14 +134,29 @@ public class ASM_Creator {
                                         "idiv ebx\n" +
                                         "push edx");
 
-        operationBlocks.put("L_SHIFT",  "\n\npop ebx\t; left shift\n" +
+        operationBlocks.put("BIT_AND",  "\n\npop ebx\t; bit_and\n" +
                                         "pop eax\n" +
-                                        "sal eax, ebx\n" +
+                                        "and ebx, eax\n" +
+                                        "push ebx");
+
+        operationBlocks.put("BIT_OR",  "\n\npop ebx\t; bit_or\n" +
+                                        "pop eax\n" +
+                                        "or ebx, eax\n" +
+                                        "push ebx");
+
+        operationBlocks.put("BIT_XOR",  "\n\npop ebx\t; bit_xor\n" +
+                                        "pop eax\n" +
+                                        "xor ebx, eax\n" +
+                                        "push ebx");
+
+        operationBlocks.put("L_SHIFT",  "\n\npop ecx\t; left shift\n" +
+                                        "pop eax\n" +
+                                        "sal eax, cl\n" +
                                         "push eax");
 
-        operationBlocks.put("R_SHIFT",  "\n\npop ebx\t; right shift\n" +
+        operationBlocks.put("R_SHIFT",  "\n\npop ecx\t; right shift\n" +
                                         "pop eax\n" +
-                                        "sar eax, ebx\n" +
+                                        "sar eax, cl\n" +
                                         "push eax");
 
         operationBlocks.put("EQ",   "\n\npop ebx\t; equal\n" +
@@ -280,7 +295,7 @@ public class ASM_Creator {
                 if (paramsMap.containsKey(param.getCurrent().getValue()))
                     throw new CompilerException("This parameter is already created!", param.getCurrent());
 
-                paramsMap.put(param.getCurrent().getValue(), paramsMap.size()-2);
+                paramsMap.put(param.getCurrent().getValue(), -paramsMap.size()-2);
             }
             paramsList.add(paramsMap);
 
@@ -336,6 +351,12 @@ public class ASM_Creator {
             ifFlag = blockItems[2].equals("1");
         }
 
+        /* append ending of IF construction using ifFlag */
+        if (ifFlag){
+            blockCode.append(String.format("_if_end_%s:", ifHashCode));
+            ifFlag = false;
+        }
+
         variableMap.remove(variableMap.size()-1);
         varPointer = memoryPointer;
         return blockCode.toString();
@@ -360,10 +381,10 @@ public class ASM_Creator {
             /* RETURN statement, make retFlag true and break from function */
             case "RETURN":{
                 blockItemCode.append(genExpCode(variableMap, blockItem.getChild(0)));
-                blockItemCode.append("\npop edx\n" +
-                                    "mov esp, ebp\n" +
-                                    "pop ebp\n" +
-                                    "ret\n");
+                blockItemCode.append(   "\npop edx\n" +
+                                        "mov esp, ebp\n" +
+                                        "pop ebp\n" +
+                                        "ret\n");
                 break;
             }
 
@@ -386,7 +407,7 @@ public class ASM_Creator {
                 /* initialise IF condition */
                 blockItemCode.append(genExpCode(variableMap, blockItem.getChild(0)))
                         .append(   "\n\npop eax\t; if condition\n" + // before is condition IF <EXP> ":" (0)
-                                "cmp eax, 0\n")
+                                    "cmp eax, 0\n")
                         /* jump if <EXP> is false */
                         .append(String.format("je _if_false_%s", ifHashCode));
 
@@ -415,7 +436,7 @@ public class ASM_Creator {
                 /* initialise ELIF condition */
                 blockItemCode.append(genExpCode(variableMap, blockItem.getChild(0)))
                         .append(   "\n\npop eax\t; elif condition\n" +  // before is condition ELIF <EXP> ":" (0)
-                                "cmp eax, 0\n")
+                                    "cmp eax, 0\n")
                         /* jump elif <EXP> is false */
                         .append(String.format("je _elif_false_%d", blockItem.hashCode()));
 
@@ -490,6 +511,9 @@ public class ASM_Creator {
             /* operations with two operands */
             case "L_SHIFT":
             case "R_SHIFT":
+            case "BIT_AND":
+            case "BIT_OR":
+            case "BIT_XOR":
             case "EQ":
             case "NE":
             case "GT":
@@ -575,6 +599,11 @@ public class ASM_Creator {
             /* function calling */
             case "DEF_CALL":{
                 StringBuilder ret = new StringBuilder();
+
+                if (!defAST.containsKey(current.getCurrent().getValue())){
+                    throw new CompilerException(String.format("Unknown method: %s",
+                            current.getCurrent().getValue()), current.getCurrent());
+                }
 
                 if (current.getChild(0).getChildren().size() !=
                         defAST.get(current.getCurrent().getValue())

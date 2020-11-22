@@ -14,9 +14,6 @@ import java.io.*;
  */
 public class MainController {
 
-    /* name for all outer files */
-    private final String myName = "5-4-Java-IO-82-Verbovskyi";
-
     @FXML
     private Button btnOpenFile, btnSaveAs;
 
@@ -135,8 +132,17 @@ public class MainController {
     private boolean build(){
         save();
 
-        Compiler compiler = new Compiler(String.format("%s.py", myName),
-                                        String.format("%s.asm", myName));
+        /* name for outer files */
+        StringBuilder myName = new StringBuilder();
+        String[] namePartially = (new File(textFileName.getText())).getName().split("\\.");
+        for (int i = 0; i < namePartially.length-1; i++) {
+            myName.append(namePartially[i]);
+            if (i != namePartially.length -2)
+                myName.append('.');
+        }
+
+        Compiler compiler = new Compiler(String.format("%s.py", myName.toString()),
+                                        String.format("%s.asm", myName.toString()));
         ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
         PrintStream ps = new PrintStream(consoleOutput);
 
@@ -148,7 +154,7 @@ public class MainController {
         textConsole.setText(consoleOutput.toString());
 
         if (compilationResult)
-            textASM.setText(readFromFile(String.format("%s.asm", myName)));
+            textASM.setText(readFromFile(String.format("%s.asm", myName.toString())));
 
         return compilationResult;
     }
@@ -161,17 +167,26 @@ public class MainController {
         if (!build())
             return;
 
+        /* name for outer files */
+        StringBuilder myName = new StringBuilder();
+        String[] namePartially = (new File(textFileName.getText())).getName().split("\\.");
+        for (int i = 0; i < namePartially.length-1; i++) {
+            myName.append(namePartially[i]);
+            if (i != namePartially.length -2)
+                myName.append('.');
+        }
+
         String startBat =   "copy %1$s.asm %1$s\\masm32\\bin\\\n"+
                             "cd %1$s\\masm32\\bin\\\n"+
                             "ml /coff %1$s.asm -link /subsystem:console\n"+
-                            "start cmd /c %1$s.exe ^& echo. ^& pause\n"+
+                            "start \"%1$s.asm\" cmd /c %1$s.exe ^& echo. ^& pause\n"+
                             "exit";
-        writeToFile(String.format("%s-tmp.bat", myName), String.format(startBat, myName));
+        writeToFile(String.format("%s-tmp.bat", myName.toString()), String.format(startBat, myName.toString()));
 
         ProcessBuilder builder = new ProcessBuilder(
                 "cmd.exe",
-                "/c",
-                String.format("start /MIN %s-tmp.bat", myName));
+                            "/c",
+                String.format("start /MIN %s-tmp.bat", myName.toString()));
         builder.redirectErrorStream(true);
         try {
             builder.start();

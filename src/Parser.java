@@ -170,7 +170,7 @@ public class Parser {
             }
             tokenEnhancedIterator.previous();
 
-            statements.add(parseStat(currentSpaceTabCount, tokenEnhancedIterator));
+            statements.add(parseStat(tmpSpaceTabCount, tokenEnhancedIterator));
 
             if (!tokenEnhancedIterator.hasNext())
                 return statements;
@@ -245,7 +245,17 @@ public class Parser {
                 return returnNode;
             }
 
-            /* if statement: 'IF <EXP> ":" NEW_LINE' { <STAT> } */
+            case "BREAK":
+            case "CONTINUE": {
+                tokenEnhancedIterator.next();
+                Node_AST oneWordNode = new Node_AST(token);
+
+                isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
+
+                return oneWordNode;
+            }
+
+            /* if statement: 'IF <EXP> ":" NEW_LINE { <STAT> }' */
             case "IF":{
                 tokenEnhancedIterator.next();
                 Node_AST ifNode = new Node_AST(token);
@@ -275,7 +285,7 @@ public class Parser {
                 return ifNode;
             }
 
-            /* elif statement: 'ELIF <EXP> ":" NEW_LINE' { <STAT> } */
+            /* elif statement: 'ELIF <EXP> ":" NEW_LINE { <STAT> }' */
             case "ELIF":{
                 tokenEnhancedIterator.next();
 
@@ -306,7 +316,7 @@ public class Parser {
                 return elifNode;
             }
 
-            /* elif statement: 'ELSE ":" NEW_LINE' { <STAT> } */
+            /* elif statement: 'ELSE ":" NEW_LINE { <STAT> }' */
             case "ELSE":{
                 tokenEnhancedIterator.next();
 
@@ -324,6 +334,176 @@ public class Parser {
                 }
 
                 return elseNode;
+            }
+
+            /* for statement: 'FOR WORD IN RANGE "(" <EXP> [ "," <EXP> [ "," <EXP> ] ] ")" ":" NEW_LINE { <STAT> }' */
+            case "FOR": {
+                tokenEnhancedIterator.next();
+                Token token_tmp = tokenEnhancedIterator.next();
+
+                Node_AST forNode = new Node_AST((token)),
+                        forVar = null,
+                        forAssign = new Node_AST(new Token("=", "ASSIGN",
+                            token_tmp.getRow(), token_tmp.getColumn())),
+                        forAssignThird = new Node_AST(new Token("=", "ASSIGN",
+                            token_tmp.getRow(), token_tmp.getColumn())),
+                        forLessThan = new Node_AST(new Token("<", "LT",
+                            token_tmp.getRow(), token_tmp.getColumn())),
+                        forAdd = new Node_AST(new Token("+", "ADD",
+                            token_tmp.getRow(), token_tmp.getColumn()));
+
+                if (token_tmp.getType().equals("WORD")){
+                    forVar = new Node_AST(new Token(token_tmp.getValue(), "ID",
+                            token_tmp.getRow(), token_tmp.getColumn()));
+                }
+                else {
+                    if (token_tmp.getType().equals("DOWN_LINE")){
+                        forVar = new Node_AST(new Token("_tmp_for_var", "ID",
+                                token_tmp.getRow(), token_tmp.getColumn()));
+                    }
+                    else {
+                        fail(1, token_tmp);
+                    }
+                }
+
+                isLikeTemplate(tokenEnhancedIterator, "IN", 1);
+                isLikeTemplate(tokenEnhancedIterator, "RANGE", 1);
+                isLikeTemplate(tokenEnhancedIterator, "LBR", 7);
+
+                Node_AST fExp = parseExp(tokenEnhancedIterator), sExp, tExp;
+
+                if (tokenEnhancedIterator.peek().getType().equals("COMMA")){
+                    tokenEnhancedIterator.next();
+                    sExp = parseExp(tokenEnhancedIterator);
+                    if (tokenEnhancedIterator.peek().getType().equals("COMMA")){
+                        tokenEnhancedIterator.next();
+                        tExp = parseExp(tokenEnhancedIterator);
+                    }
+                    else {
+                        tExp = new Node_AST(new Token("1", "INT",
+                                tokenEnhancedIterator.current().getRow(),
+                                tokenEnhancedIterator.current().getColumn()));
+                    }
+
+                    /* set relationship for first data and ASSIGN */
+                    fExp.setParent(forAssign);
+                    forAssign.appendChild(fExp);
+                    /* set relationship for ASSIGN and cycle variable */
+                    forAssign.setParent(forVar);
+                    forVar.appendChild(forAssign);
+                    /* set relationship for cycle variable and FOR node */
+                    forVar.setParent(forNode);
+                    forNode.appendChild(forVar);
+
+                    /* create copy of variable */
+                    Node_AST forVarSec = new Node_AST(forVar.getCurrent());
+                    /* set relationship for cycle variable and LT */
+                    forVarSec.setParent(forLessThan);
+                    forLessThan.appendChild(forVarSec);
+                    /* set relationship for second data and LT */
+                    sExp.setParent(forLessThan);
+                    forLessThan.appendChild(sExp);
+                }
+                else {
+                    sExp = new Node_AST(new Token("0", "INT",
+                            tokenEnhancedIterator.current().getRow(),
+                            tokenEnhancedIterator.current().getColumn()));
+                    tExp = new Node_AST(new Token("1", "INT",
+                            tokenEnhancedIterator.current().getRow(),
+                            tokenEnhancedIterator.current().getColumn()));
+
+                    /* set relationship for first data and ASSIGN */
+                    sExp.setParent(forAssign);
+                    forAssign.appendChild(sExp);
+                    /* set relationship for ASSIGN and cycle variable */
+                    forAssign.setParent(forVar);
+                    forVar.appendChild(forAssign);
+                    /* set relationship for cycle variable and FOR node */
+                    forVar.setParent(forNode);
+                    forNode.appendChild(forVar);
+
+                    /* create copy of variable */
+                    Node_AST forVarSec = new Node_AST(forVar.getCurrent());
+                    /* set relationship for cycle variable and LT */
+                    forVarSec.setParent(forLessThan);
+                    forLessThan.appendChild(forVarSec);
+                    /* set relationship for second data and LT */
+                    fExp.setParent(forLessThan);
+                    forLessThan.appendChild(fExp);
+                }
+
+                /* set relationship for LT and FOR node */
+                forLessThan.setParent(forNode);
+                forNode.appendChild(forLessThan);
+
+                isLikeTemplate(tokenEnhancedIterator, "RBR", 5);
+
+                /* create copy of variable for ADD and for ASSIGN */
+                Node_AST    forVarThird = new Node_AST(forVar.getCurrent()),
+                            forVarInit = new Node_AST(forVar.getCurrent());
+                /* set relationship for cycle variable and ADD */
+                forVarThird.setParent(forAdd);
+                forAdd.appendChild(forVarThird);
+                /* set relationship for third data and ADD */
+                tExp.setParent(forAdd);
+                forAdd.appendChild(tExp);
+                /* set relationship for LT and ASSIGN node */
+                forAdd.setParent(forAssignThird);
+                forAssignThird.appendChild(forAdd);
+                /* set relationship for ASSIGN and VAR node */
+                forAssignThird.setParent(forVarInit);
+                forVarInit.appendChild(forAssignThird);
+                /* set relationship for VAR and FOR node */
+                forVarInit.setParent(forNode);
+                forNode.appendChild(forVarInit);
+
+                isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
+                isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
+
+                Node_AST forBody = new Node_AST(new Token("for_body", "FOR_BODY",
+                        token_tmp.getRow(), token_tmp.getColumn()));
+
+                ArrayList <Node_AST> forBlock = parseBlock(currentSpaceCount, tokenEnhancedIterator);
+
+                /* set family relations */
+                forBody.appendChildren(forBlock);
+                for (Node_AST child: forBlock) {
+                    child.setParent(forBody);
+                }
+
+                forBody.setParent(forNode);
+                forNode.appendChild(forBody);
+
+                return forNode;
+            }
+
+            /* while statement: 'WHILE "(" <EXP> ")" ":" NEW_LINE' */
+            case "WHILE": {
+                tokenEnhancedIterator.next();
+
+                Node_AST whileNode = new Node_AST(token), whileExp = parseExp(tokenEnhancedIterator);
+
+                whileExp.setParent(whileNode);
+                whileNode.appendChild(whileExp);
+
+                isLikeTemplate(tokenEnhancedIterator, "COLON", 1);
+                Token body = isLikeTemplate(tokenEnhancedIterator, "NEW_LINE", 1);
+
+                Node_AST whileBody = new Node_AST(new Token("while_body", "WHILE_BODY",
+                        body.getRow(), body.getColumn()));
+
+                ArrayList <Node_AST> whileBlock = parseBlock(currentSpaceCount, tokenEnhancedIterator);
+
+                /* set family relations */
+                whileBody.appendChildren(whileBlock);
+                for (Node_AST child: whileBlock) {
+                    child.setParent(whileBody);
+                }
+
+                whileBody.setParent(whileNode);
+                whileNode.appendChild(whileBody);
+
+                return whileNode;
             }
 
             /* else variant such as create var, or do something: <EXP> */

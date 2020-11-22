@@ -89,6 +89,7 @@ public class Lexer {
         keywords.put("or", "OR");
         keywords.put("pass", "PASS");
         keywords.put("raise", "RAISE");
+        keywords.put("range", "RANGE"); // range function, need to be function
         keywords.put("return", "RETURN");
         keywords.put("True", "TRUE");
         keywords.put("try", "TRY");
@@ -97,6 +98,7 @@ public class Lexer {
         keywords.put("yield", "YIELD");
 
         /* fill symbol tokens */
+        symbols.put("_", "DOWN_LINE");
         symbols.put(".", "DOT");
         symbols.put(",", "COMMA");
         symbols.put("=", "ASSIGN");

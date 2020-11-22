@@ -20,6 +20,9 @@ public class ASM_Creator {
     private final String asmCode;
     /* pointer to new variable */
     private int varPointer;
+    /* global variables for setting epilog of IF statement */
+    String ifHashCode = "";
+    boolean ifFlag = false;
 
     /* template for full asm file */
     private String masmTemplate = ".386\n" +
@@ -299,7 +302,15 @@ public class ASM_Creator {
             }
             paramsList.add(paramsMap);
 
-            funcTempl.append(genBlockCode(defAST.get(defName).getRoot().getChildren(), paramsList));
+            funcTempl.append(genBlockCode(defAST.get(defName).getRoot().getChildren(), paramsList,
+                    "", false,
+                    "", false));
+
+            /* append ending of IF construction using ifFlag */
+            if (ifFlag){
+                funcTempl.append(String.format("_if_end_%s:\n", ifHashCode));
+                ifFlag = false;
+            }
 
             /* make {defName} epilog */
             funcTempl.append(String.format( "\npop edx\n" +
@@ -320,13 +331,12 @@ public class ASM_Creator {
      * @return - code
      * @throws CompilerException - if AST is incorrect, it throw this exception
      */
-    private String genBlockCode(ArrayList<Node_AST> block, ArrayList<HashMap<String, Integer>> variableMap)
+    private String genBlockCode(ArrayList<Node_AST> block, ArrayList<HashMap<String, Integer>> variableMap,
+                                String forHashCode, boolean forFlag,
+                                String whileHashCode, boolean whileFlag)
             throws CompilerException {
         StringBuilder blockCode = new StringBuilder();
-        boolean ifFlag = false;
         int memoryPointer = varPointer;
-        /* hash code for make logic and conditional construction unique */
-        String ifHashCode = "";
         variableMap.add(new HashMap<>());
 
         /* go by every statement in function body */
@@ -336,26 +346,11 @@ public class ASM_Creator {
             if (child.getCurrent().getType().equals("PARAMS"))
                 continue;
 
-            /* append ending of IF construction using ifFlag */
-            if (!child.getCurrent().getType().equals("IF") &&
-                    !child.getCurrent().getType().equals("ELIF") &&
-                    !child.getCurrent().getType().equals("ELSE") && ifFlag){
-                blockCode.append(String.format("_if_end_%s:", ifHashCode));
-                ifFlag = false;
-            }
-
-            String[] blockItems = genBlockItemCode(child, variableMap, ifHashCode, ifFlag);
-
-            blockCode.append(blockItems[0]);
-            ifHashCode = blockItems[1];
-            ifFlag = blockItems[2].equals("1");
+            blockCode.append(genBlockItemCode(child, variableMap,
+                    forHashCode, forFlag, whileHashCode, whileFlag));
         }
 
-        /* append ending of IF construction using ifFlag */
-        if (ifFlag){
-            blockCode.append(String.format("_if_end_%s:", ifHashCode));
-            ifFlag = false;
-        }
+        blockCode.append(String.format("add esp, %d\n", 4*variableMap.get(variableMap.size()-1).size()));
 
         variableMap.remove(variableMap.size()-1);
         varPointer = memoryPointer;
@@ -366,15 +361,26 @@ public class ASM_Creator {
      * make code for any statement
      * @param blockItem - statement (block-item type)
      * @param variableMap - list with stack of variable, current is the last in it
-     * @param ifHashCode - hash code of IF Node_AST for generating conditional structures
-     * @param ifFlag - flag for correct generating conditional structures
+     * @param forHashCode - hash code of FOR Node_AST for generating cycles
+     * @param forFlag - flag for correct generating FOR cycles
+     * @param whileHashCode - hash code of WHILE Node_AST for generating cycles
+     * @param whileFlag - flag for correct generating WHILE cycles
      * @return - block-item code
      * @throws CompilerException - if AST is incorrect, it throw this exception
      */
-    private String[] genBlockItemCode(Node_AST blockItem, ArrayList<HashMap<String, Integer>> variableMap,
-                                    String ifHashCode, boolean ifFlag)
+    private String genBlockItemCode(Node_AST blockItem, ArrayList<HashMap<String, Integer>> variableMap,
+                                    String forHashCode, boolean forFlag,
+                                    String whileHashCode, boolean whileFlag)
             throws CompilerException {
         StringBuilder blockItemCode = new StringBuilder();
+
+        /* append ending of IF construction using ifFlag */
+        if (!blockItem.getCurrent().getType().equals("IF") &&
+                !blockItem.getCurrent().getType().equals("ELIF") &&
+                !blockItem.getCurrent().getType().equals("ELSE") && ifFlag){
+            blockItemCode.append(String.format("_if_end_%s:\n", ifHashCode));
+            ifFlag = false;
+        }
 
         switch (blockItem.getCurrent().getType()){
 
@@ -385,6 +391,36 @@ public class ASM_Creator {
                                         "mov esp, ebp\n" +
                                         "pop ebp\n" +
                                         "ret\n");
+                break;
+            }
+
+            /* BREAK statement, get out from last cycle */
+            case "BREAK":{
+                if (forFlag){
+                    blockItemCode.append(String.format("\njmp _for_end_%s\n", forHashCode));
+                }
+                else {
+                    if (whileFlag){
+                        blockItemCode.append(String.format("\njmp _while_end_%s\n", whileHashCode));
+                    }
+                    else
+                        throw new CompilerException("Found BREAK without FOR", blockItem.getCurrent());
+                }
+                break;
+            }
+
+            /* CONTINUE statement, get out from last cycle */
+            case "CONTINUE":{
+                if (forFlag){
+                    blockItemCode.append(String.format("\njmp _for_cont_%s\n", forHashCode));
+                }
+                else {
+                    if (whileFlag) {
+                        blockItemCode.append(String.format("\njmp _while_%s\n", whileHashCode));
+                    }
+                    else
+                        throw new CompilerException("Found CONTINUE without FOR", blockItem.getCurrent());
+                }
                 break;
             }
 
@@ -409,21 +445,20 @@ public class ASM_Creator {
                         .append(   "\n\npop eax\t; if condition\n" + // before is condition IF <EXP> ":" (0)
                                     "cmp eax, 0\n")
                         /* jump if <EXP> is false */
-                        .append(String.format("je _if_false_%s", ifHashCode));
+                        .append(String.format("je _if_false_%s\n", ifHashCode));
 
                 if (blockItem.getChild(1).getChildren().size() == 0){
                     throw new CompilerException("This token need to have block body", blockItem.getCurrent());
                 }
 
                 /* create code for IF true part */
-                blockItemCode.append(genBlockCode(blockItem.getChild(1).getChildren(), variableMap));
-                /*for (Node_AST node: blockItem.getChild(1).getChildren()) {
-                    blockItemCode.append(genExpCode(localVars, node));
-                }*/
+                blockItemCode.append(genBlockCode(blockItem.getChild(1).getChildren(), variableMap,
+                        forHashCode, forFlag,
+                        whileHashCode, whileFlag));
 
                 /* if true, jump to end, next code will false */
                 blockItemCode.append(String.format(   "\n\njmp _if_end_%1$s\n"+
-                        "_if_false_%1$s:", ifHashCode));
+                        "_if_false_%1$s:\n", ifHashCode));
                 break;
             }
 
@@ -445,7 +480,9 @@ public class ASM_Creator {
                 }
 
                 /* create code for ELIF true part */
-                blockItemCode.append(genBlockCode(blockItem.getChild(1).getChildren(), variableMap));
+                blockItemCode.append(genBlockCode(blockItem.getChild(1).getChildren(), variableMap,
+                        forHashCode, forFlag,
+                        whileHashCode, whileFlag));
                 /*for (Node_AST node: blockItem.getChild(1).getChildren()) {
                     blockItemCode.append(genExpCode(localVars, node));
                 }*/
@@ -468,10 +505,73 @@ public class ASM_Creator {
                 blockItemCode.append("\n\n\t\t; else");
 
                 /* create code for ELSE part */
-                blockItemCode.append(genBlockCode(blockItem.getChildren(), variableMap));
+                blockItemCode.append(genBlockCode(blockItem.getChildren(), variableMap,
+                        forHashCode, forFlag,
+                        whileHashCode, whileFlag));
                 /*for (Node_AST node: blockItem.getChildren()) {
                     blockItemCode.append(genExpCode(localVars, node));
                 }*/
+                break;
+            }
+
+            /* FOR statement */
+            case "FOR":{
+                /* remember hashcode for jumping on special sign */
+                forHashCode = blockItem.hashCode()+"";
+
+                if (blockItem.getChild(3).getChildren().size() == 0){// before is creating cycle variable
+                    throw new CompilerException("This token need to have block body", blockItem.getCurrent());
+                }
+
+                /* initialise FOR condition */
+                blockItemCode.append(String.format( "\n%1$s\n" +
+                                                    "\n_for_%2$s:\t; for\n" +
+                                                    "\n%3$s\n" +
+                                                    "\npop eax\n" +
+                                                    "cmp eax, 0\n" +
+                                                    "je _for_end_%2$s\n" +
+                                                    "\n%4$s\n" +
+                                                    "\n_for_cont_%2$s:\n" +
+                                                    "\n%5$s\n" +
+                                                    "\njmp _for_%2$s\n" +
+                                                    "_for_end_%2$s:",
+                        genExpCode(variableMap, blockItem.getChild(0)),
+                        forHashCode,
+                        genExpCode(variableMap, blockItem.getChild(1)),
+                        /* create code for FOR body */
+                        genBlockCode(blockItem.getChild(3).getChildren(), variableMap,
+                                forHashCode, true,
+                                whileHashCode, whileFlag),
+                        genExpCode(variableMap, blockItem.getChild(2))));
+
+                break;
+            }
+
+            /* WHILE statement */
+            case "WHILE":{
+                /* remember hashcode for jumping on special sign */
+                whileHashCode = blockItem.hashCode()+"";
+
+                if (blockItem.getChild(1).getChildren().size() == 0){// before is creating cycle variable
+                    throw new CompilerException("This token need to have block body", blockItem.getCurrent());
+                }
+
+                /* initialise FOR condition */
+                blockItemCode.append(String.format( "\n_while_%1$s:\t; while\n" +
+                                                    "\n%2$s\n" +
+                                                    "\npop eax\n" +
+                                                    "cmp eax, 0\n" +
+                                                    "je _while_end_%1$s\n" +
+                                                    "\n%3$s\n" +
+                                                    "\njmp _while_%1$s\n" +
+                                                    "_while_end_%1$s:",
+                        forHashCode,
+                        genExpCode(variableMap, blockItem.getChild(0)),
+                        /* create code for WHILE body */
+                        genBlockCode(blockItem.getChild(1).getChildren(), variableMap,
+                                forHashCode, forFlag,
+                                whileHashCode, true)));
+
                 break;
             }
 
@@ -486,7 +586,7 @@ public class ASM_Creator {
                 throw new CompilerException("Incorrect type of operation", blockItem.getCurrent());
         }
 
-        return new String[]{blockItemCode.toString(), ifHashCode+"", ifFlag ? "1" : "0"};
+        return blockItemCode.toString();
     }
 
     /**
@@ -570,18 +670,21 @@ public class ASM_Creator {
                     for (int i = variableMap.size()-1; i >= 0; i--) {
                         if (variableMap.get(i).containsKey(current.getCurrent().getValue())) {
                             return String.format("%s\n" +
-                                                "pop ebx\n" +
+                                                "pop ebx\t; put var: %s\n" +
                                                 "mov [ebp-%d], ebx\n",
-                                    varExp, 4 * variableMap.get(i).get(current.getCurrent().getValue()));
+                                    varExp, current.getCurrent().getValue(),
+                                    4 * variableMap.get(i).get(current.getCurrent().getValue()));
                         }
                     }
 
                     /* create new variable */
                     variableMap.get(variableMap.size()-1).put(current.getCurrent().getValue(), ++varPointer);
                     return String.format("%s\n" +
-                                        "pop ebx\n" +
-                                        "mov [ebp-%d], ebx\n",
-                            varExp, 4 * variableMap.get(variableMap.size()-1).get(current.getCurrent().getValue()));
+                                        "pop ebx\t; create var: %s\n" +
+                                        "mov [ebp-%d], ebx\n" +
+                                        "sub esp, 4\n",
+                            varExp, current.getCurrent().getValue(),
+                            4 * variableMap.get(variableMap.size()-1).get(current.getCurrent().getValue()));
                 }
 
                 // get variable
@@ -646,13 +749,15 @@ public class ASM_Creator {
         ArrayList<HashMap<String, Integer>> varList = new ArrayList<>();
         varList.add(globalVariableMap);
 
-        code.append(genBlockCode(ast.getRoot().getChildren(), varList));
+        code.append(genBlockCode(ast.getRoot().getChildren(), varList,
+                "", false,
+                "", false));
 
-        /*for (Node_AST node: ast.getRoot().getChildren()) {
-            if ("DEF_CALL".equals(node.getCurrent().getType())) {
-                code.append(String.format("\tcall %s\n", node.getCurrent().getValue()));
-            }
-        }*/
+        /* append ending of IF construction using ifFlag */
+        if (ifFlag){
+            code.append(String.format("_if_end_%s:\n", ifHashCode));
+            ifFlag = false;
+        }
 
         return code.toString();
     }

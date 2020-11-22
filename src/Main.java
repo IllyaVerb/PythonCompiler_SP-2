@@ -23,15 +23,15 @@ public class Main extends Application {
         Parent root = FXMLLoader.load(getClass().getResource("Style.fxml"));
         Scene scene = new Scene(root);
 
+        /* name for all files */
+        String myName = "6-4-Java-IO-82-Verbovskyi";
+
         stage.setScene(scene);
         //stage.setResizable(false);
 
-        stage.setTitle("PythonCompiler_IllyaVerb");
+        stage.setTitle(myName);
         TextArea textFilename = (TextArea) scene.lookup("#text_input_file"),
                     textInput = (TextArea) scene.lookup("#text_input_print");
-
-        /* name for all files */
-        String myName = "5-4-Java-IO-82-Verbovskyi";
 
         /* set default open filename as %myName%.py */
         textFilename.setText(String.format("%s\\%s.py", System.getProperty("user.dir"), myName));
